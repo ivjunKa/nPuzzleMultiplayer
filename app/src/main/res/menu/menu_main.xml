@@ -1,0 +1,17 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools" tools:context=".MainActivity">
+    <item android:id="@+id/action_settings" android:title="@string/action_settings"
+        android:orderInCategory="100" app:showAsAction="never" />
+    <item android:id="@+id/action_change_diff"
+        android:title="Difficulty"
+        android:showAsAction="always">
+        <menu>
+            <group android:checkableBehavior="single">
+                <item android:id="@+id/menu_easy" android:title="Easy"  android:showAsAction="never"/>
+                <item android:id="@+id/menu_normal" android:title="Medium"  android:showAsAction="never" android:checked="true" />
+                <item android:id="@+id/menu_hard" android:title="Hard"  android:showAsAction="never" />
+            </group>
+        </menu>
+    </item>
+</menu>

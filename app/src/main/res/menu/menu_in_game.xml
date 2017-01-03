@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+
+    <item android:id="@+id/action_change_diff"
+        android:title="Difficulty"
+        android:showAsAction="always">
+        <menu>
+            <group android:checkableBehavior="single">
+                <item android:id="@+id/menu_easy" android:title="Easy"  android:showAsAction="never"/>
+                <item android:id="@+id/menu_normal" android:title="Medium"  android:showAsAction="never" android:checked="true" />
+                <item android:id="@+id/menu_hard" android:title="Hard"  android:showAsAction="never" />
+            </group>
+        </menu>
+    </item>
+    <item android:id="@+id/action_quit"
+        android:title="Quit" />
+    <item android:id="@+id/action_shuffle"
+        android:title="Shuffle" />
+</menu>

@@ -1,0 +1,15 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item
+        android:id="@+id/diff_easy"
+        android:title="Easy"/>
+
+    <item
+        android:id="@+id/diff_normal"
+        android:title="Normal"
+        />
+
+    <item
+        android:id="@+id/diff_hard"
+        android:title="Hard"/>
+
+</menu> 

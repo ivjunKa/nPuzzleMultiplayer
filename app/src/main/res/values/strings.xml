@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">NPuzzle</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="click_me">Click me!</string>
+    <string name="game_prompt">Choose difficulty</string>
+    <string-array name="game_difficulty">
+        <item>Easy</item>
+        <item>Normal</item>
+        <item>Hard</item>
+    </string-array>
+</resources>
