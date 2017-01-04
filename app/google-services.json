@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "761717571805",
+    "firebase_url": "https://npuzzlemultiplayer.firebaseio.com",
+    "project_id": "npuzzlemultiplayer",
+    "storage_bucket": "npuzzlemultiplayer.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:761717571805:android:22650594c8ea91a4",
+        "android_client_info": {
+          "package_name": "kaplya.ia.mad.ica.han.nl.myapplication"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "761717571805-m7cg7gpnihe1fmgo7id3clp124ock2f9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCEUekzJlBuNpbj1WExgHB7Q8idHpOz4Y"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Config;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,13 +16,14 @@ import android.widget.ImageView;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
-import org.w3c.dom.Text;
-
-import java.util.ArrayList;
-
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import kaplya.ia.mad.ica.han.nl.myapplication.R;
-
-
+import org.w3c.dom.Text;
+import java.util.ArrayList;
 public class MainActivity extends ActionBarActivity {
     private RadioGroup imgSelectorGroup;
     private Button startButton;
@@ -31,14 +33,23 @@ public class MainActivity extends ActionBarActivity {
     private int selectedDrawableResource = 0;
     private EditText roomName = null;
     private boolean GameTypeMultiplayer = false;
+    private String userName;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //connecting to firebase
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        //adding reference to table
+        final DatabaseReference myRef = database.getReference("npuzzlemultiplayer");
+
+
         roomName = (EditText)findViewById(R.id.room_name);
         Intent previousIntent = getIntent();
         if (previousIntent.hasExtra("multiplayer")) {
             GameTypeMultiplayer = true;
+            userName = previousIntent.getStringExtra("username");
         }
         else {
             GameTypeMultiplayer = false;
@@ -58,6 +69,14 @@ public class MainActivity extends ActionBarActivity {
                 Intent nextIntent = new Intent();
                 if (GameTypeMultiplayer) {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);
+                    //DatabaseReference childRef = myRef.push();
+                    //while using push we basically say that this is an subobject and everytning setValue adds some random key with given value
+                    DatabaseReference statusRef = myRef.child("users").child(userName).child("status");
+                    DatabaseReference imgName = myRef.child("users").child(userName).child("selected_image");
+                    //MultiPlayerStartScreen.updateList(userName);
+                    statusRef.setValue("creator");
+                    // Set the child's data to the value passed in from the text box.
+                    //childRef.setValue("Something");
                 }
                 else {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);

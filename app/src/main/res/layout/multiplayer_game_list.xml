@@ -16,7 +16,7 @@
         android:inputType="textPersonName"
         android:hint="Provide your nickname here"
         android:ems="10"
-        android:id="@+id/editText" />
+        android:id="@+id/user_name_provider" />
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -25,7 +25,7 @@
     <ListView
         android:layout_width="match_parent"
         android:layout_height = "200dp"
-        android:id="@+id/listView" />
+        android:id="@+id/list_avialable_games" />
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
