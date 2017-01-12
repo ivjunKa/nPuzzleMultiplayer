@@ -8,7 +8,11 @@ import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 
 /**
@@ -21,13 +25,20 @@ public class PuzzleAdapter extends BaseAdapter{
     private int PUZZLE_CHUNKS;
     private int imageWidth, imageHeight;
     public static int stepsCount = 0;
+    public int[] tileDatabaseArr;
+
+    FirebaseDatabase database = FirebaseDatabase.getInstance();
+    final DatabaseReference myRef = database.getInstance().getReference();
 
     public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, final ArrayList<Tile> tiles) {
         this.context = context;
+
         this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
         this.tiles = tiles;
         imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
         imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
+        setTileAddrInDatabase();
+        Log.d("PuzzleAdapter", "This is constructor of PuzzleAdapter class");
         for(int i =0;i<tiles.size();i++){
             Log.d("Puzzle","UnShuffled tiles are+"+tiles.get(i).getTileId());
         }
@@ -47,6 +58,15 @@ public class PuzzleAdapter extends BaseAdapter{
     public Object getItem(int position) {
         return tiles.get(position);
     }
+    //sets tiles positions in database instance
+    public void setTileAddrInDatabase(){
+        tileDatabaseArr = new int[tiles.size()];
+        for(int i=0;i<tileDatabaseArr.length;i++){
+            tileDatabaseArr[i] = tiles.get(i).getTileId();
+        }
+        DatabaseReference imageArray = myRef.child("users").child("siv").child("tileaddr");
+        imageArray.setValue(Arrays.toString(tileDatabaseArr));
+    }
 
     public long getItemId(int position) {
         return 0;
@@ -54,6 +74,7 @@ public class PuzzleAdapter extends BaseAdapter{
 
     // create a new ImageView for each item referenced by the Adapter
     public View getView(final int position, View convertView, ViewGroup parent) {
+        Log.d("PuzzleAdapter","This is getView method of the Puzzle adapter");
         final ImageView imageView;
         if (convertView == null) {
                 // if it's not recycled, initialize some attributes
@@ -61,7 +82,7 @@ public class PuzzleAdapter extends BaseAdapter{
                 imageView.setLayoutParams(new GridView.LayoutParams(imageWidth - 10, imageHeight));
                 imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 imageView.setPadding(1, 1, 1, 1);
-            imageView.setOnClickListener(new View.OnClickListener() {
+                imageView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     //Log.d("PuzzleAdapter",Integer.toString(position));
@@ -77,12 +98,15 @@ public class PuzzleAdapter extends BaseAdapter{
                           tiles.set(result,clickedTile);
                           darkTilePos = position;
                           notifyDataSetChanged();
+                        //refresh tiles positions in database instance
+                          setTileAddrInDatabase();
                           stepsCount++;
                           checkWin();
                     }
                 }
             });
         } else {
+            Log.d("PuzzleAdapter","This called in case of convertedView == null");
             imageView = (ImageView) convertView;
         }
         imageView.setImageBitmap(tiles.get(position).getTileBitmap());

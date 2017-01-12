@@ -34,17 +34,16 @@ public class MainActivity extends ActionBarActivity {
     private EditText roomName = null;
     private boolean GameTypeMultiplayer = false;
     private String userName;
-
+    public static FirebaseRoomListener firebaseRoomListener;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //super.onResume();
         setContentView(R.layout.activity_main);
         //connecting to firebase
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         //adding reference to table
-        final DatabaseReference myRef = database.getReference("npuzzlemultiplayer");
-
-
+        final DatabaseReference myRef = database.getInstance().getReference();
         roomName = (EditText)findViewById(R.id.room_name);
         Intent previousIntent = getIntent();
         if (previousIntent.hasExtra("multiplayer")) {
@@ -61,29 +60,36 @@ public class MainActivity extends ActionBarActivity {
         startButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
+                //we can pass the drawableId to the GameActivity so we can chunk the image in the GameActivity instead
+                //of chunking it here and passing via Intent
                 int drawableId = getSelectedImage(imgSelectorGroup.getCheckedRadioButtonId());
+
+                String drawableName = getSelectedImageName(imgSelectorGroup.getCheckedRadioButtonId());
+
+                Log.d("MainActivity","this is the drawable id " + Integer.toString(drawableId));
+
                 ImageView view = (ImageView)findViewById(drawableId);
+
                 numberOfChunks = getDifficulty();
                 ArrayList<Bitmap> chunkedImage = splitImage(view, numberOfChunks);
-                //Intent previousIntent = getIntent();
                 Intent nextIntent = new Intent();
                 if (GameTypeMultiplayer) {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);
-                    //DatabaseReference childRef = myRef.push();
-                    //while using push we basically say that this is an subobject and everytning setValue adds some random key with given value
                     DatabaseReference statusRef = myRef.child("users").child(userName).child("status");
-                    DatabaseReference imgName = myRef.child("users").child(userName).child("selected_image");
-                    //MultiPlayerStartScreen.updateList(userName);
+                    DatabaseReference imageName = myRef.child("users").child(userName).child("imgname");
                     statusRef.setValue("creator");
-                    // Set the child's data to the value passed in from the text box.
-                    //childRef.setValue("Something");
+                    imageName.setValue(drawableName);
+                    firebaseRoomListener = new FirebaseRoomListener(userName,null);
+                    //imageArray.setValue(chunkedImage);
                 }
                 else {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);
                 }
-                nextIntent.putParcelableArrayListExtra("chunkedImage",chunkedImage);
+                nextIntent.putParcelableArrayListExtra("chunkedImage", chunkedImage);
                 nextIntent.putExtra("imgDrawableResource", selectedDrawableResource);
                 nextIntent.putExtra("chunksTotal",numberOfChunks);
+                nextIntent.putExtra("drawableName",drawableName);
+                nextIntent.putExtra("drawableId", drawableId);
                 startActivity(nextIntent);
             }
         });
@@ -107,10 +113,6 @@ public class MainActivity extends ActionBarActivity {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        //noinspection SimplifiableIfStatement
-
         switch(id){
             case R.id.menu_easy:
                 difficulty = "Easy";
@@ -127,10 +129,6 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void startGame(View v){
-        Intent intent = new Intent(this, GameActivity.class);
-        startActivity(intent);
-    }
     public int getSelectedImage(int button){
         switch (button){
             case R.id.radioImg2:
@@ -144,6 +142,20 @@ public class MainActivity extends ActionBarActivity {
                 return R.id.img_dude;
         }
         return 0;
+    }
+    public String getSelectedImageName(int button){
+        switch (button){
+            case R.id.radioImg2:
+                selectedDrawableResource = R.drawable.malevitsj;
+                return "malevitsj";
+            case R.id.radioDog:
+                selectedDrawableResource = R.drawable.dog;
+                return "dog";
+            case R.id.radioDude:
+                selectedDrawableResource = R.drawable.dude;
+                return "dude";
+        }
+        return "dude";
     }
     public static ArrayList<Bitmap> splitImage(ImageView image,int chunkNumbers) {
 
@@ -175,7 +187,6 @@ public class MainActivity extends ActionBarActivity {
             }
             yCoord += chunkHeight;
         }
-
         return chunkedImages;
     }
     private int getDifficulty(){

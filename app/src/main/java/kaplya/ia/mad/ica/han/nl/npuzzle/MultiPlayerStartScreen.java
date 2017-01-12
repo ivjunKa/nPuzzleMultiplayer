@@ -15,6 +15,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +58,19 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
                 startActivity(intent);
             }
         });
+        Button joinGame = (Button)findViewById(R.id.button_join_game);
+        joinGame.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MultiPlayerStartScreen.this, GameActivity.class);
+                intent.putExtra("multiplayer", true);
+                intent.putExtra("guest", true);
+                intent.putExtra("username", userName.getText().toString());
+                //needs to be the name that guest clicked to
+                intent.putExtra("hostName", "siv");
+                startActivity(intent);
+            }
+        });
     }
     //these needs to happends automatically with data retrieved from the database
     public static void updateList(String value){
@@ -67,25 +81,29 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
     public static void refreshData(){
 
     }
+
     public void initDatabase(){
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         //adding reference to table
-        final DatabaseReference myRef = database.getReference("npuzzlemultiplayer");
-        myRef.addChildEventListener(new ChildEventListener() {
+        final DatabaseReference myRef = database.getReference();
+//        myRef.child("users").addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(DataSnapshot dataSnapshot) {
+//                Log.d("MultiplayerStartScreen", dataSnapshot.getValue().toString());
+//                for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+//                    updateList(postSnapshot.getKey());
+//                }
+//            }
+//            @Override
+//            public void onCancelled(DatabaseError databaseError) {
+//
+//            }
+//        });
+        myRef.child("users").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                if(dataSnapshot.hasChildren()){
-                    Iterable<DataSnapshot> data = dataSnapshot.getChildren();
-                    Iterator it = data.iterator();
-                    while(it.hasNext()){
-                        Log.d("MultiPlayerStartScreen",it.next().toString());
-                    }
-                }
-                else{
-                    Log.d("MultiPlayerStartScreen", "The dataSnapshot has no childrens");
-                }
+                updateList(dataSnapshot.getKey().toString());
             }
-
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
 
