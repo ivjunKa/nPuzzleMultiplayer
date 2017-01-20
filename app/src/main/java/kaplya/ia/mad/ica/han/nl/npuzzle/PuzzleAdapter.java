@@ -1,12 +1,18 @@
 package kaplya.ia.mad.ica.han.nl.npuzzle;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.BitmapDrawable;
+import android.media.Image;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
@@ -19,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 
+import kaplya.ia.mad.ica.han.nl.myapplication.R;
+
 /**
  * Created by Iv on 3-5-2015.
  */
@@ -30,23 +38,41 @@ public class PuzzleAdapter extends BaseAdapter{
     private int imageWidth, imageHeight;
     public static int stepsCount = 0;
     public int[] tileDatabaseArr;
-    private boolean myTurn;
 
-    private String playerType;
+    private boolean myTurn;
+    private String myType;
+    private String opponentType;
+    private ViewGroup parent;
+
 
     private DarkTile darkTile = new DarkTile();
     FirebaseDatabase database = FirebaseDatabase.getInstance();
     final DatabaseReference myRef = database.getInstance().getReference();
 
-    public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, final ArrayList<Tile> tiles, String playerType) {
+    public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, final ArrayList<Tile> tiles, String myType, ViewGroup parent) {
         this.context = context;
-        this.playerType = playerType;
+        this.myType = myType;
+        this.parent = parent;
+        Log.d("PuzzleAdapter", "this is myType : " + myType);
 
+        opponentType = (myType == "host") ? "guest" : "host";
+
+        Log.d("PuzzleAdapter", "this is opponentType : " + opponentType);
+
+        myTurn = (myType == "host") ? true : false;
+
+        Log.d("PuzzleAdapter", "this is myTurn : " + myTurn);
+
+        myRef.child("users").child("siv").child(myType).setValue(myTurn);
+
+        createListenerForOpponentActions(myType);
+        GameActivity.initTurnIndicator(myTurn);
         this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
         this.tiles = tiles;
         imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
         imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
         //Log.d("PuzzleAdapter", "My turn is" + myTurn);
+
 
         setTileAddrInDatabase();
 
@@ -116,11 +142,7 @@ public class PuzzleAdapter extends BaseAdapter{
         DatabaseReference imageArray = myRef.child("users").child("siv").child("tileaddr");
         myRef.child("users").child("siv").child("darkTile").child("darkTileNewPosition").setValue(tiles.size()-1);
         darkTile.setNewPosition(tiles.size()-1);
-        //myRef.child("users").child("siv").child("darkTile").child("darkTileOldPosition").setValue(null);
-        //DatabaseReference darkTilePosition = myRef.child("users").child("siv").child("darkTilePosition");
-        //DatabaseReference darkTileOldPosition = myRef.child("users").child("siv").child("darkTileOldPosition");
-        //darkTileOldPosition.setValue(0);
-        //darkTilePosition.setValue(tiles.size()-1);
+
         imageArray.setValue(Arrays.toString(tileDatabaseArr));
         attachGlobalUserListener();
 
@@ -131,8 +153,9 @@ public class PuzzleAdapter extends BaseAdapter{
     }
 
     // create a new ImageView for each item referenced by the Adapter
-    public View getView(final int position, View convertView, ViewGroup parent) {
+    public View getView(final int position, final View convertView, final ViewGroup parent) {
         //Log.d("PuzzleAdapter","This is getView method of the Puzzle adapter");
+
         final ImageView imageView;
         if (convertView == null) {
                 // if it's not recycled, initialize some attributes
@@ -145,7 +168,7 @@ public class PuzzleAdapter extends BaseAdapter{
                 public void onClick(View v) {
                     //Log.d("PuzzleAdapter",Integer.toString(position));
                     //we kan do the turn AND we did`n made the turn in the previous time
-
+                    if(myTurn){
                         Integer result = getBlankPuzzle(position);
                         if(result == null){
                             //Log.d("PuzzleAdapter","anything like blank tile were founded,can`t swap");
@@ -157,15 +180,15 @@ public class PuzzleAdapter extends BaseAdapter{
                             myRef.child("users").child("siv").child("darkTile").child("darkTileOldPosition").setValue(result);
                             myRef.child("users").child("siv").child("darkTile").child("darkTileNewPosition").setValue(position);
                             stepsCount++;
-                            myRef.child("users").child("siv").child("didTurn").setValue(true);
+                            myRef.child("users").child("siv").child(myType).setValue(false);
+                            myRef.child("users").child("siv").child(opponentType).setValue(true);
                             //checkWin();
                             //madeTurn = true;
                         }
-
-
-
-
-
+                    }
+                    else{
+                        setHint(position, 50);
+                    }
                 }
             });
         } else {
@@ -342,7 +365,43 @@ public class PuzzleAdapter extends BaseAdapter{
         });
 
     }
-    public void setUserName(String userName){
-        this.playerType = playerType;
+    public void setUserType(String myType){
+        this.myType = myType;
+    }
+    public void createListenerForOpponentActions(String myType){
+        myRef.child("users").child("siv").child(myType).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Log.d("PuzzleAdapter", "this is Listener for my type : " + myTurn);
+                myTurn = (Boolean)dataSnapshot.getValue();
+                GameActivity.initTurnIndicator(myTurn);
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+    public void setHint(int position,int opacity) {
+        for(int i = 0; i<tiles.size(); i++){
+            if(tiles.get(i).wasChanged()){
+                tiles.get(i).restoreOriginalImage();
+            }
+        }
+        notifyDataSetChanged();
+        Bitmap bitmap = tiles.get(position).getTileBitmap();
+
+        Bitmap mutableBitmap = bitmap.isMutable()
+                ? bitmap
+                : bitmap.copy(Bitmap.Config.ARGB_8888, true);
+        Canvas canvas = new Canvas(mutableBitmap);
+        int colour = (opacity & 0xFF) << 24;
+        canvas.drawColor(colour, PorterDuff.Mode.DST_IN);
+
+        tiles.get(position).setTemporaryImage(mutableBitmap);
+        tiles.get(position).setIsChanged();
+        notifyDataSetChanged();
     }
 }

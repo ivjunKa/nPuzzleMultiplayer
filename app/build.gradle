@@ -9,7 +9,7 @@ android {
         }
     defaultConfig {
         applicationId "kaplya.ia.mad.ica.han.nl.myapplication"
-        minSdkVersion 15
+        minSdkVersion 19
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"

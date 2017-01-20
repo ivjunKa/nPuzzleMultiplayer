@@ -1,6 +1,7 @@
 package kaplya.ia.mad.ica.han.nl.npuzzle;
 
 import android.graphics.Bitmap;
+import android.util.Log;
 
 import java.util.ArrayList;
 
@@ -10,11 +11,14 @@ import java.util.ArrayList;
 public class Tile{
     public int imgId;
     public Bitmap img;
+    public Bitmap bitmapOriginalImage;
     public Boolean empty;
+    public Boolean isChanged = false;
     public Tile(int imgId, Bitmap img, Boolean empty){
         this.imgId= imgId;
         this.img = img;
         this.empty = empty;
+        backupOriginalImage();
     }
     public Bitmap getTileBitmap(){
         return img;
@@ -30,5 +34,26 @@ public class Tile{
     }
     public void setImgId(int imgId){
         this.imgId = imgId;
+    }
+    public void backupOriginalImage(){
+        bitmapOriginalImage = img.copy(Bitmap.Config.ARGB_8888, true);
+        //bitmapOriginalImage = this.img;
+    }
+    public void setIsChanged(){
+        isChanged = true;
+    }
+    public Boolean wasChanged(){
+      return isChanged;
+    }
+    public void restoreOriginalImage(){
+        Log.d("PuzzleAdapter", "Restoring image " + this.imgId);
+        this.img = bitmapOriginalImage.copy(Bitmap.Config.ARGB_8888, true);
+        isChanged = false;
+    }
+    public void setTemporaryImage(Bitmap bitmap){
+        //backupOriginalImage();
+        Log.d("PuzzleAdapter", "Image was backuped " + imgId);
+        this.img = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+        Log.d("PuzzleAdapter", "New image has been set " + imgId);
     }
 }

@@ -18,6 +18,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
@@ -46,6 +47,7 @@ public class GameActivity extends ActionBarActivity {
     public static ImageView view;
     public int difficulty;
     private boolean myTurn;
+    public static TextView turnIndicator;
     @Override
     //this was totally changed, instead of using extern firebase room listener i`m using listener in this class
     //so now we both need to connect and THEN we going to init the game
@@ -62,7 +64,7 @@ public class GameActivity extends ActionBarActivity {
 
         mContext = this.getApplicationContext();
 
-
+        turnIndicator = (TextView)findViewById(R.id.turnIndicator);
         initDatabase();
         //imgResource = intent.getIntExtra("imgDrawableResource", 0);
         //int difficulty = intent.getIntExtra("chunksTotal",0);
@@ -81,17 +83,13 @@ public class GameActivity extends ActionBarActivity {
         });
     }
     private void initGame(){
-        //Intent intent = getIntent();
 
-        //imgResource = intent.getIntExtra("imgDrawableResource", 0);
-        //int difficulty = intent.getIntExtra("chunksTotal",0);
-        //imageName = intent.getStringExtra("drawableName");
 
         view = getCustomImageView(imageName);
         newChunked = splitImage(view, difficulty);
 
         ArrayList<Tile> tiles = new ArrayList<Tile>();
-        setBlankTile(newChunked,tiles);
+        setBlankTile(newChunked, tiles);
         GridView grid = (GridView)findViewById(R.id.gridView);
         Intent intent = getIntent();
         String playerType;
@@ -101,9 +99,11 @@ public class GameActivity extends ActionBarActivity {
         else {
             playerType = "guest";
         }
-        adapter = new PuzzleAdapter(this,difficulty,tiles,playerType);
+        adapter = new PuzzleAdapter(this,difficulty,tiles,playerType,grid);
+
         grid.setAdapter(adapter);
         grid.setNumColumns((int) Math.sqrt(newChunked.size()));
+
     }
 
 //    public static void initThisGame(int difficulty, String imageName){
@@ -234,11 +234,11 @@ public class GameActivity extends ActionBarActivity {
         myRef.child("users").child("siv").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                Log.d("GameActivity","This is our changed data: " + dataSnapshot.getValue().toString());
-                if(dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("ready_to_play")){
+                Log.d("GameActivity", "This is our changed data: " + dataSnapshot.getValue().toString());
+                if (dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("ready_to_play")) {
                     //here we can init the game for everyone
                     imageName = dataSnapshot.child("imgname").getValue().toString();
-                    Long diff = (Long)dataSnapshot.child("difficulty").getValue();
+                    Long diff = (Long) dataSnapshot.child("difficulty").getValue();
                     difficulty = diff.intValue();
                     myRef.child("users").child("siv").child("status").setValue("playing");
                     initGame();
@@ -251,7 +251,9 @@ public class GameActivity extends ActionBarActivity {
 
             }
         });
-
-
+    }
+    public static void initTurnIndicator(Boolean turn) {
+        String textInTurnIndicator = turn ? "Your turn" : "Opponents turn";
+        turnIndicator.setText(textInTurnIndicator);
     }
 }
