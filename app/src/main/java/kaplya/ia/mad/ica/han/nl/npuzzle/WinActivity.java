@@ -20,7 +20,7 @@ public class WinActivity extends Activity {
         Intent intent = getIntent();
         int stepsCount = intent.getIntExtra("stepsCount",0);
         steps.setText("Amount of steps:"+ stepsCount);
-        solvedImg.setImageResource(intent.getIntExtra("imgSolved",0));
+        //solvedImg.setImageResource(intent.getIntExtra("imgSolved",0));
         solvedImg.getLayoutParams().width = 500;
         solvedImg.getLayoutParams().height = 500;
     }

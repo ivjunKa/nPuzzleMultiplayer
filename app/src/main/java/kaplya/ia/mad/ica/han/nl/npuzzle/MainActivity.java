@@ -34,7 +34,7 @@ public class MainActivity extends ActionBarActivity {
     private EditText roomName = null;
     private boolean GameTypeMultiplayer = false;
     private String userName;
-    public static FirebaseRoomListener firebaseRoomListener;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,33 +63,32 @@ public class MainActivity extends ActionBarActivity {
                 //we can pass the drawableId to the GameActivity so we can chunk the image in the GameActivity instead
                 //of chunking it here and passing via Intent
                 int drawableId = getSelectedImage(imgSelectorGroup.getCheckedRadioButtonId());
-
                 String drawableName = getSelectedImageName(imgSelectorGroup.getCheckedRadioButtonId());
-
-                Log.d("MainActivity","this is the drawable id " + Integer.toString(drawableId));
-
                 ImageView view = (ImageView)findViewById(drawableId);
-
                 numberOfChunks = getDifficulty();
-                ArrayList<Bitmap> chunkedImage = splitImage(view, numberOfChunks);
+                //ArrayList<Bitmap> chunkedImage = splitImage(view, numberOfChunks);
                 Intent nextIntent = new Intent();
                 if (GameTypeMultiplayer) {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);
                     DatabaseReference statusRef = myRef.child("users").child(userName).child("status");
                     DatabaseReference imageName = myRef.child("users").child(userName).child("imgname");
-                    statusRef.setValue("creator");
+                    DatabaseReference difficulty = myRef.child("users").child(userName).child("difficulty");
+                    difficulty.setValue(numberOfChunks);
+                    statusRef.setValue("waiting_for_guest");
                     imageName.setValue(drawableName);
-                    firebaseRoomListener = new FirebaseRoomListener(userName,null);
+
                     //imageArray.setValue(chunkedImage);
                 }
                 else {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);
                 }
-                nextIntent.putParcelableArrayListExtra("chunkedImage", chunkedImage);
+                //nextIntent.putParcelableArrayListExtra("chunkedImage", chunkedImage);
                 nextIntent.putExtra("imgDrawableResource", selectedDrawableResource);
                 nextIntent.putExtra("chunksTotal",numberOfChunks);
                 nextIntent.putExtra("drawableName",drawableName);
-                nextIntent.putExtra("drawableId", drawableId);
+                nextIntent.putExtra("host",true);
+                //nextIntent.putExtra("drawableId", drawableId);
+                Log.d("MainActivity", "this is our main activity intent " + nextIntent.toString());
                 startActivity(nextIntent);
             }
         });
@@ -157,38 +156,7 @@ public class MainActivity extends ActionBarActivity {
         }
         return "dude";
     }
-    public static ArrayList<Bitmap> splitImage(ImageView image,int chunkNumbers) {
 
-        //For the number of rows and columns of the grid to be displayed
-        int rows, cols;
-
-        //For height and width of the small image chunks
-        int chunkHeight, chunkWidth;
-
-        //To store all the small image chunks in bitmap format in this list
-        ArrayList<Bitmap> chunkedImages = new ArrayList<Bitmap>(chunkNumbers);
-
-        //Getting the scaled bitmap of the source image
-        BitmapDrawable drawable = (BitmapDrawable) image.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
-        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, bitmap.getWidth(), bitmap.getHeight(), true);
-
-        rows = cols = (int) Math.sqrt(chunkNumbers);
-        chunkHeight = bitmap.getHeight() / rows;
-        chunkWidth = bitmap.getWidth() / cols;
-
-        //xCoord and yCoord are the pixel positions of the image chunks
-        int yCoord = 0;
-        for (int x = 0; x < rows; x++) {
-            int xCoord = 0;
-            for (int y = 0; y < cols; y++) {
-                chunkedImages.add(Bitmap.createBitmap(scaledBitmap, xCoord, yCoord, chunkWidth, chunkHeight));
-                xCoord += chunkWidth;
-            }
-            yCoord += chunkHeight;
-        }
-        return chunkedImages;
-    }
     private int getDifficulty(){
         switch (difficulty){
             case "Easy":

@@ -19,8 +19,12 @@ import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
 
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,31 +43,35 @@ public class GameActivity extends ActionBarActivity {
     private static Context mContext;
     private PuzzleAdapter adapter = null;
     public static String imageName;
-    private boolean guest = false;
-    private String hostName;
+    public static ImageView view;
+    public int difficulty;
+    private boolean myTurn;
     @Override
+    //this was totally changed, instead of using extern firebase room listener i`m using listener in this class
+    //so now we both need to connect and THEN we going to init the game
+    //it must be working on the same principle as the multiplayer start screen list because we have
+    //also an adapter and an gridview(listview in multiplayer screen)
+    //and while host is waiting at guest i`ll place an image like placeholder at the gridview
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
 
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        final DatabaseReference myRef = database.getInstance().getReference();
+        //FirebaseDatabase database = FirebaseDatabase.getInstance();
+        //final DatabaseReference myRef = database.getInstance().getReference();
 
 
         mContext = this.getApplicationContext();
-        Intent intent = getIntent();
-        //chunked = intent.getParcelableArrayListExtra("chunkedImage");
-        imgResource = intent.getIntExtra("imgDrawableResource", 0);
-        int difficulty = intent.getIntExtra("chunksTotal",0);
-        if(intent.hasExtra("guest")){
-            myRef.child("users").child("siv").child("ready").setValue("true");
-        }
-        imageName = intent.getStringExtra("drawableName");
-        ImageView view = getCustomImageView(imageName);
-        newChunked = splitImage(view, difficulty);
 
 
-        initGame(difficulty, newChunked);
+        initDatabase();
+        //imgResource = intent.getIntExtra("imgDrawableResource", 0);
+        //int difficulty = intent.getIntExtra("chunksTotal",0);
+        //imageName = intent.getStringExtra("drawableName");
+
+        //view = getCustomImageView(imageName);
+        //newChunked = splitImage(view, difficulty);
+
+        //initGame(difficulty, newChunked);
         Button resolve = (Button)findViewById(R.id.resolveButton);
         resolve.setOnClickListener(new Button.OnClickListener() {
             @Override
@@ -72,14 +80,35 @@ public class GameActivity extends ActionBarActivity {
             }
         });
     }
-    private void initGame(int difficulty, ArrayList<Bitmap> chunked ){
+    private void initGame(){
+        //Intent intent = getIntent();
+
+        //imgResource = intent.getIntExtra("imgDrawableResource", 0);
+        //int difficulty = intent.getIntExtra("chunksTotal",0);
+        //imageName = intent.getStringExtra("drawableName");
+
+        view = getCustomImageView(imageName);
+        newChunked = splitImage(view, difficulty);
+
         ArrayList<Tile> tiles = new ArrayList<Tile>();
-        setBlankTile(chunked,tiles);
+        setBlankTile(newChunked,tiles);
         GridView grid = (GridView)findViewById(R.id.gridView);
-        adapter = new PuzzleAdapter(this,difficulty,tiles);
+        Intent intent = getIntent();
+        String playerType;
+        if(intent.hasExtra("host")) {
+            playerType = "host";
+        }
+        else {
+            playerType = "guest";
+        }
+        adapter = new PuzzleAdapter(this,difficulty,tiles,playerType);
         grid.setAdapter(adapter);
-        grid.setNumColumns((int) Math.sqrt(chunked.size()));
+        grid.setNumColumns((int) Math.sqrt(newChunked.size()));
     }
+
+//    public static void initThisGame(int difficulty, String imageName){
+//        ArrayList<Tile> tiles = new ArrayList<Tile>();
+//    }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -117,10 +146,12 @@ public class GameActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
     public static void gotoWin(Context c){
-        Intent intent = new Intent(c,WinActivity.class);
+        Intent intent = new Intent(c, WinActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra("stepsCount",PuzzleAdapter.getStepsCount());
-        intent.putExtra("imgSolved", imgResource);
+        //intent.putExtra("imgSolved", imgResource);
+        intent.putExtra("imgSolved", imageName);
+
         c.startActivity(intent);
     }
     public static Context getAppContext(){
@@ -128,10 +159,11 @@ public class GameActivity extends ActionBarActivity {
     }
 
     private void resetDiff(int difficulty){
-        ImageView newImg = new ImageView(this);
-        newImg.setImageResource(imgResource);
-        ArrayList<Bitmap> newChunked = MainActivity.splitImage(newImg,difficulty);
-        initGame(difficulty,newChunked);
+        //this is how we can pass the resource id to the imageview
+        ImageView newImg = getCustomImageView(imageName);
+        //newImg.setImageResource(imgResource);
+        ArrayList<Bitmap> newChunked = splitImage(newImg, difficulty);
+        //initGame(difficulty,newChunked);
     }
     private void setBlankTile(ArrayList<Bitmap> chunked,ArrayList<Tile> tiles ){
         Bitmap darkTile = BitmapFactory.decodeResource(this.getResources(),
@@ -186,12 +218,40 @@ public class GameActivity extends ActionBarActivity {
     public ImageView getCustomImageView(String filename){
         String fnm = filename; //  this is image file name
         String PACKAGE_NAME = getApplicationContext().getPackageName();
-        int imgId = getResources().getIdentifier(PACKAGE_NAME+":drawable/"+fnm , null, null);
+        int imgId = getResources().getIdentifier(PACKAGE_NAME + ":drawable/" + fnm, null, null);
         System.out.println("IMG ID :: "+imgId);
         System.out.println("PACKAGE_NAME :: "+PACKAGE_NAME);
 //    Bitmap bitmap = BitmapFactory.decodeResource(getResources(),imgId);
         ImageView view = new ImageView(this);
         view.setImageBitmap(BitmapFactory.decodeResource(getResources(),imgId));
         return view;
+    }
+    public void initDatabase(){
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        //adding reference to table
+        final DatabaseReference myRef = database.getReference();
+
+        myRef.child("users").child("siv").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Log.d("GameActivity","This is our changed data: " + dataSnapshot.getValue().toString());
+                if(dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("ready_to_play")){
+                    //here we can init the game for everyone
+                    imageName = dataSnapshot.child("imgname").getValue().toString();
+                    Long diff = (Long)dataSnapshot.child("difficulty").getValue();
+                    difficulty = diff.intValue();
+                    myRef.child("users").child("siv").child("status").setValue("playing");
+                    initGame();
+                }
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+
     }
 }

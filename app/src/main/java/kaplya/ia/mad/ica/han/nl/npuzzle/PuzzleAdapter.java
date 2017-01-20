@@ -8,8 +8,12 @@ import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,27 +25,32 @@ import java.util.Collections;
 public class PuzzleAdapter extends BaseAdapter{
     private Context context;
     private ArrayList<Tile> tiles;
-    private Integer darkTilePos = null;
+
     private int PUZZLE_CHUNKS;
     private int imageWidth, imageHeight;
     public static int stepsCount = 0;
     public int[] tileDatabaseArr;
+    private boolean myTurn;
 
+    private String playerType;
+
+    private DarkTile darkTile = new DarkTile();
     FirebaseDatabase database = FirebaseDatabase.getInstance();
     final DatabaseReference myRef = database.getInstance().getReference();
 
-    public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, final ArrayList<Tile> tiles) {
+    public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, final ArrayList<Tile> tiles, String playerType) {
         this.context = context;
+        this.playerType = playerType;
 
         this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
         this.tiles = tiles;
         imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
         imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
+        //Log.d("PuzzleAdapter", "My turn is" + myTurn);
+
         setTileAddrInDatabase();
-        Log.d("PuzzleAdapter", "This is constructor of PuzzleAdapter class");
-        for(int i =0;i<tiles.size();i++){
-            Log.d("Puzzle","UnShuffled tiles are+"+tiles.get(i).getTileId());
-        }
+
+
         new android.os.Handler().postDelayed(
                 new Runnable() {
                     public void run() {
@@ -49,6 +58,46 @@ public class PuzzleAdapter extends BaseAdapter{
                     }
                 },
                 3000);
+        //this one controlls the positions of the tiles
+        myRef.child("users").child("siv").child("tileaddr").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+
+                String[] items = dataSnapshot.getValue().toString().replaceAll("\\[", "").replaceAll("\\]", "").replaceAll("\\s", "").split(",");
+                int[] results = new int[items.length];
+                for (int i = 0; i < items.length; i++) {
+                    try {
+                        results[i] = Integer.parseInt(items[i]);
+                    } catch (NumberFormatException nfe) {
+                        //NOTE: write something here if you need to recover from formatting errors
+                    };
+                }
+                for(int i = 0; i< tileDatabaseArr.length; i++) {
+                    tileDatabaseArr[i] = results[i];
+                }
+                for(int i = 0; i< tileDatabaseArr.length; i++) {
+                    //Log.d("PuzzleAdapter", "These is new tempArr from database : " + tileDatabaseArr[i]);
+                }
+                //setTilesFromDatabase();
+            }
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+//        myRef.child("users").child("siv").child("darkTileOldPosition").addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(DataSnapshot dataSnapshot) {
+//                Log.d("PuzzleAdapter", "Setting oldValue from database");
+//                Long tempDarkTilePos = (Long)dataSnapshot.getValue();
+//                darkTileOldPos = tempDarkTilePos.intValue();
+//            }
+//            @Override
+//            public void onCancelled(DatabaseError databaseError) {
+//
+//            }
+//        });
+
     }
 
     public int getCount() {
@@ -65,7 +114,16 @@ public class PuzzleAdapter extends BaseAdapter{
             tileDatabaseArr[i] = tiles.get(i).getTileId();
         }
         DatabaseReference imageArray = myRef.child("users").child("siv").child("tileaddr");
+        myRef.child("users").child("siv").child("darkTile").child("darkTileNewPosition").setValue(tiles.size()-1);
+        darkTile.setNewPosition(tiles.size()-1);
+        //myRef.child("users").child("siv").child("darkTile").child("darkTileOldPosition").setValue(null);
+        //DatabaseReference darkTilePosition = myRef.child("users").child("siv").child("darkTilePosition");
+        //DatabaseReference darkTileOldPosition = myRef.child("users").child("siv").child("darkTileOldPosition");
+        //darkTileOldPosition.setValue(0);
+        //darkTilePosition.setValue(tiles.size()-1);
         imageArray.setValue(Arrays.toString(tileDatabaseArr));
+        attachGlobalUserListener();
+
     }
 
     public long getItemId(int position) {
@@ -74,7 +132,7 @@ public class PuzzleAdapter extends BaseAdapter{
 
     // create a new ImageView for each item referenced by the Adapter
     public View getView(final int position, View convertView, ViewGroup parent) {
-        Log.d("PuzzleAdapter","This is getView method of the Puzzle adapter");
+        //Log.d("PuzzleAdapter","This is getView method of the Puzzle adapter");
         final ImageView imageView;
         if (convertView == null) {
                 // if it's not recycled, initialize some attributes
@@ -86,27 +144,32 @@ public class PuzzleAdapter extends BaseAdapter{
                 @Override
                 public void onClick(View v) {
                     //Log.d("PuzzleAdapter",Integer.toString(position));
-                    Integer result = getBlankPuzzle(position);
-                    if(result == null){
-                        Log.d("PuzzleAdapter","anything like blank tile were founded,can`t swap");
-                    }
-                    // TODO blank tile founded, swap
-                    else {
-                          Tile foundedDarkTile = tiles.get(result);
-                          Tile clickedTile = tiles.get(position);
-                          tiles.set(position,foundedDarkTile);
-                          tiles.set(result,clickedTile);
-                          darkTilePos = position;
-                          notifyDataSetChanged();
-                        //refresh tiles positions in database instance
-                          setTileAddrInDatabase();
-                          stepsCount++;
-                          checkWin();
-                    }
+                    //we kan do the turn AND we did`n made the turn in the previous time
+
+                        Integer result = getBlankPuzzle(position);
+                        if(result == null){
+                            //Log.d("PuzzleAdapter","anything like blank tile were founded,can`t swap");
+                        }
+                        // TODO blank tile founded, swap
+                        else {
+                            //in this clause we only need to add cnahged values to the database,
+                            // the database controller does the notifying
+                            myRef.child("users").child("siv").child("darkTile").child("darkTileOldPosition").setValue(result);
+                            myRef.child("users").child("siv").child("darkTile").child("darkTileNewPosition").setValue(position);
+                            stepsCount++;
+                            myRef.child("users").child("siv").child("didTurn").setValue(true);
+                            //checkWin();
+                            //madeTurn = true;
+                        }
+
+
+
+
+
                 }
             });
         } else {
-            Log.d("PuzzleAdapter","This called in case of convertedView == null");
+            //Log.d("PuzzleAdapter","This called in case of convertedView == null");
             imageView = (ImageView) convertView;
         }
         imageView.setImageBitmap(tiles.get(position).getTileBitmap());
@@ -120,7 +183,7 @@ public class PuzzleAdapter extends BaseAdapter{
         }
         //find vertical
         else if(checkVerticalPosition(pos,divider)!=null){
-            return checkVerticalPosition(pos,divider);
+            return checkVerticalPosition(pos, divider);
         }
         return null;
     }
@@ -128,15 +191,15 @@ public class PuzzleAdapter extends BaseAdapter{
     public Integer checkHorizontalPosition(int pos, int divider) {
         int next = 0;
         if (pos == 0 || pos % divider == 0) {
-            Log.d("PuzzleAdapter", "we are in the left side of the screen,needs to check only the right tile next to this");
+            //Log.d("PuzzleAdapter", "we are in the left side of the screen,needs to check only the right tile next to this");
             next = pos + 1;
             return checkNext(next);
         } else if (pos == tiles.size() - 1 || (pos + 1) % divider == 0) {
-            Log.d("PuzzleAdapter", "we are in the right side of the screen,needs to check only the left tile next to this");
+            //Log.d("PuzzleAdapter", "we are in the right side of the screen,needs to check only the left tile next to this");
             next = pos - 1;
             return checkNext(next);
         } else {
-            Log.d("PuzzleAdapter", "we are in the middle,needs to check both sides");
+            //Log.d("PuzzleAdapter", "we are in the middle,needs to check both sides");
             //check left side
             next = pos - 1;
             if (checkNext(next) == null) { // nothing found? check right
@@ -147,20 +210,20 @@ public class PuzzleAdapter extends BaseAdapter{
     }
     private Integer checkVerticalPosition(int pos, int divider) {
         int next = 0;
-        Log.d("Puzzle","pos is" + pos);
+        //Log.d("Puzzle","pos is" + pos);
         if(pos == 0 || pos < divider){
-            Log.d("PuzzleAdapter","We are in top");
+            //Log.d("PuzzleAdapter","We are in top");
             next = pos + divider;
             return checkNext(next);
         }
         else if(pos > ((tiles.size()-1) - divider)){
-            Log.d("PuzzleAdapter","We are in bottom");
+            //Log.d("PuzzleAdapter","We are in bottom");
             next = pos - divider;
             return checkNext(next);
         }
         else {
             //check top first
-            Log.d("PuzzleAdapter", "We are in the middle");
+            //Log.d("PuzzleAdapter", "We are in the middle");
             next = pos - divider;
             if(checkNext(next) == null){ // nothing found? check bottom
                 next = pos + divider;
@@ -169,8 +232,8 @@ public class PuzzleAdapter extends BaseAdapter{
         }
     }
     private Integer checkNext(int next){
-        Log.d("PuzzleAdapter", "BLAH");
-        if(next == darkTilePos){
+        //Log.d("PuzzleAdapter", "BLAH");
+        if(next == darkTile.getNewPosition()){
             return next;
         }
         return null;
@@ -186,7 +249,7 @@ public class PuzzleAdapter extends BaseAdapter{
         return true; //got to the end, must be sorted
     }
     public void resolvePuzzle(){
-        Log.d("Puzzle","RESOLVE");
+        //Log.d("Puzzle","RESOLVE");
         Tile temp;
         for(int i= 0; i< tiles.size() -1; i++){
             for(int j =1; j< tiles.size() - i; j++){
@@ -198,7 +261,7 @@ public class PuzzleAdapter extends BaseAdapter{
             }
         }
         notifyDataSetChanged();
-        darkTilePos = tiles.size() - 1;
+        darkTile.setNewPosition(tiles.size() - 1);
         checkWin();
     }
 
@@ -208,7 +271,7 @@ public class PuzzleAdapter extends BaseAdapter{
             tileIdArr[i] = tiles.get(i).getTileId();
         }
         if(isSorted(tileIdArr)){
-            Log.d("Puzzle","WIN!!");
+            //Log.d("Puzzle","WIN!!");
             GameActivity.gotoWin(GameActivity.getAppContext());
         }
     }
@@ -227,14 +290,59 @@ public class PuzzleAdapter extends BaseAdapter{
         tiles.set(tiles.size()-1,blankTile);
         //setting the last tile an id of empty tile
         for(int i =0;i<tiles.size();i++){
-            Log.d("Puzzle","Shuffled tiles are+"+tiles.get(i).getTileId());
+            //Log.d("Puzzle","Shuffled tiles are+"+tiles.get(i).getTileId());
         }
-        darkTilePos = tiles.size() - 1;
-        Log.d("PuzzleAdapter", Integer.toString(tiles.size()-1));
+        darkTile.setNewPosition(tiles.size() - 1);
+
         stepsCount = 0;
         notifyDataSetChanged();
+
     }
+    //this function swaps founded dark tile with clicked tile
+    public void setTilesFromDatabase(){
+        Log.d("PuzzleAdapter", "Trying to swap now");
+        Tile foundedDarkTile = tiles.get(darkTile.getOldPosition());
+        Tile clickedTile = tiles.get(darkTile.getNewPosition());
+        tiles.set(darkTile.getNewPosition(), foundedDarkTile);
+        tiles.set(darkTile.getOldPosition(), clickedTile);
+        //user have swapped the tiles,next user can do something
+
+        notifyDataSetChanged();
+    }
+
     public static int getStepsCount(){
         return stepsCount;
+    }
+
+
+    public void attachGlobalUserListener(){
+        myRef.child("users").child("siv").child("darkTile").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+
+                Log.d("PuzzleAdapter", "This is the value of tile old position: " + dataSnapshot.child("darkTileOldPosition").getValue());
+                if(dataSnapshot.hasChild("darkTileOldPosition") && dataSnapshot.hasChild("darkTileNewPosition")){
+                    Long darkTileOPos = (Long)dataSnapshot.child("darkTileOldPosition").getValue();
+                    Long darkTileNPos = (Long)dataSnapshot.child("darkTileNewPosition").getValue();
+                    darkTile.setOldPosition(darkTileOPos.intValue());
+                    if(darkTile.getNewPosition() != darkTileNPos.intValue()){
+                        Log.d("PuzzleAdapter", "New position changed, need to do the swap now");
+                        darkTile.setNewPosition(darkTileNPos.intValue());
+                        //myTurn = true;
+                        setTilesFromDatabase();
+                    }
+                    //setTilesFromDatabase(dataSnapshot.child("darkTileOldPosition").getValue().toString(), dataSnapshot.child("darkTileNewPosition").getValue().toString());
+
+                }
+            }
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+    }
+    public void setUserName(String userName){
+        this.playerType = playerType;
     }
 }

@@ -1,5 +1,6 @@
 package kaplya.ia.mad.ica.han.nl.npuzzle;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
@@ -34,10 +35,17 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
     public static List<String> games_list;
     public static ArrayAdapter<String> arrayAdapter;
 
+    public FirebaseRoomListener firebaseRoomListener;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.multiplayer_game_list);
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        final DatabaseReference myRef = database.getInstance().getReference();
+
+
         initDatabase();
         mListView = (ListView) findViewById(R.id.list_avialable_games);
         userName   = (EditText)findViewById(R.id.user_name_provider);
@@ -49,6 +57,7 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
                 (this, android.R.layout.simple_list_item_1, games_list);
         mListView.setAdapter(arrayAdapter);
         Button addNewGameButton = (Button)findViewById(R.id.button_new_game);
+        //firebaseRoomListener = new FirebaseRoomListener("siv",null);
         addNewGameButton.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -63,12 +72,13 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MultiPlayerStartScreen.this, GameActivity.class);
-                intent.putExtra("multiplayer", true);
-                intent.putExtra("guest", true);
-                intent.putExtra("username", userName.getText().toString());
-                //needs to be the name that guest clicked to
-                intent.putExtra("hostName", "siv");
+                //Intent intent = new Intent(MultiPlayerStartScreen.this, GameActivity.class);
+                //Log.d("MultiplayerStartScreen", "Context is : " + MultiPlayerStartScreen.this.toString());
+                //Log.d("MultiplayerStartScreen", "intent is : " + intent.toString());
+                //firebaseRoomListener.setContext(MultiPlayerStartScreen.this, intent);
                 startActivity(intent);
+                myRef.child("users").child("siv").child("status").setValue("ready_to_play");
+
             }
         });
     }
@@ -78,32 +88,17 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
         games_list.add(value);
         arrayAdapter.notifyDataSetChanged();
     }
-    public static void refreshData(){
-
-    }
-
     public void initDatabase(){
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         //adding reference to table
         final DatabaseReference myRef = database.getReference();
-//        myRef.child("users").addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(DataSnapshot dataSnapshot) {
-//                Log.d("MultiplayerStartScreen", dataSnapshot.getValue().toString());
-//                for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
-//                    updateList(postSnapshot.getKey());
-//                }
-//            }
-//            @Override
-//            public void onCancelled(DatabaseError databaseError) {
-//
-//            }
-//        });
+
         myRef.child("users").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 updateList(dataSnapshot.getKey().toString());
             }
+
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
 
