@@ -15,6 +15,7 @@ public class Tile{
     public Boolean empty;
     public Boolean isChanged = false;
     public Tile(int imgId, Bitmap img, Boolean empty){
+        Log.d("PuzzleAdapter", "Constructor of the Title was called");
         this.imgId= imgId;
         this.img = img;
         this.empty = empty;
@@ -36,7 +37,9 @@ public class Tile{
         this.imgId = imgId;
     }
     public void backupOriginalImage(){
+        Log.d("PuzzleAdapter", "Backuping...");
         bitmapOriginalImage = img.copy(Bitmap.Config.ARGB_8888, true);
+        Log.d("PuzzleAdapter", "Backuping done");
         //bitmapOriginalImage = this.img;
     }
     public void setIsChanged(){
@@ -52,7 +55,7 @@ public class Tile{
     }
     public void setTemporaryImage(Bitmap bitmap){
         //backupOriginalImage();
-        Log.d("PuzzleAdapter", "Image was backuped " + imgId);
+        //Log.d("PuzzleAdapter", "Image was backuped " + imgId);
         this.img = bitmap.copy(Bitmap.Config.ARGB_8888, true);
         Log.d("PuzzleAdapter", "New image has been set " + imgId);
     }

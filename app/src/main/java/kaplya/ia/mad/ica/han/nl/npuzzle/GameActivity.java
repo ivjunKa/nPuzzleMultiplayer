@@ -4,8 +4,10 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -31,6 +33,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import kaplya.ia.mad.ica.han.nl.myapplication.R;
 
@@ -48,6 +52,10 @@ public class GameActivity extends ActionBarActivity {
     public int difficulty;
     private boolean myTurn;
     public static TextView turnIndicator;
+    public static Button sendHint;
+    public Button resolve;
+    public static int hintValue;
+    public static boolean hintGiven = false;
     @Override
     //this was totally changed, instead of using extern firebase room listener i`m using listener in this class
     //so now we both need to connect and THEN we going to init the game
@@ -57,34 +65,34 @@ public class GameActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
-
-        //FirebaseDatabase database = FirebaseDatabase.getInstance();
-        //final DatabaseReference myRef = database.getInstance().getReference();
-
-
         mContext = this.getApplicationContext();
-
         turnIndicator = (TextView)findViewById(R.id.turnIndicator);
+        sendHint = (Button)findViewById(R.id.sendHintButton);
+
+        sendHint.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(hintGiven){
+                    adapter.notifyOpponent();
+                }
+                else{
+                    Log.d("GameActivity", "No hint was chosen, choose hint first");
+                }
+            }
+        });
         initDatabase();
-        //imgResource = intent.getIntExtra("imgDrawableResource", 0);
-        //int difficulty = intent.getIntExtra("chunksTotal",0);
-        //imageName = intent.getStringExtra("drawableName");
 
-        //view = getCustomImageView(imageName);
-        //newChunked = splitImage(view, difficulty);
-
-        //initGame(difficulty, newChunked);
-        Button resolve = (Button)findViewById(R.id.resolveButton);
+        resolve = (Button)findViewById(R.id.resolveButton);
         resolve.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
                 adapter.resolvePuzzle();
             }
         });
+        sendHint.setVisibility(View.GONE);
+        resolve.setVisibility(View.GONE);
     }
     private void initGame(){
-
-
         view = getCustomImageView(imageName);
         newChunked = splitImage(view, difficulty);
 
@@ -103,9 +111,9 @@ public class GameActivity extends ActionBarActivity {
 
         grid.setAdapter(adapter);
         grid.setNumColumns((int) Math.sqrt(newChunked.size()));
+        resolve.setVisibility(View.VISIBLE);
 
     }
-
 //    public static void initThisGame(int difficulty, String imageName){
 //        ArrayList<Tile> tiles = new ArrayList<Tile>();
 //    }
@@ -220,17 +228,17 @@ public class GameActivity extends ActionBarActivity {
         String PACKAGE_NAME = getApplicationContext().getPackageName();
         int imgId = getResources().getIdentifier(PACKAGE_NAME + ":drawable/" + fnm, null, null);
         System.out.println("IMG ID :: "+imgId);
-        System.out.println("PACKAGE_NAME :: "+PACKAGE_NAME);
+        System.out.println("PACKAGE_NAME :: " + PACKAGE_NAME);
 //    Bitmap bitmap = BitmapFactory.decodeResource(getResources(),imgId);
         ImageView view = new ImageView(this);
-        view.setImageBitmap(BitmapFactory.decodeResource(getResources(),imgId));
+        view.setImageBitmap(BitmapFactory.decodeResource(getResources(), imgId));
         return view;
     }
     public void initDatabase(){
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        final FirebaseDatabase database = FirebaseDatabase.getInstance();
         //adding reference to table
         final DatabaseReference myRef = database.getReference();
-
+        myRef.child("users").child("siv").child("hintValue").setValue(0);
         myRef.child("users").child("siv").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -251,9 +259,29 @@ public class GameActivity extends ActionBarActivity {
 
             }
         });
+        myRef.child("users").child("siv").child("hintValue").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Long tempValue = (Long) dataSnapshot.getValue();
+                hintValue = tempValue.intValue();
+                Log.d("GameActivity", "This is the hint value" + dataSnapshot.getValue());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
     }
     public static void initTurnIndicator(Boolean turn) {
         String textInTurnIndicator = turn ? "Your turn" : "Opponents turn";
+        Log.d("GameActivity", "This is my turn indicator" + turn);
         turnIndicator.setText(textInTurnIndicator);
+        if(turn){
+            sendHint.setVisibility(View.GONE);
+        }
+        else {
+            sendHint.setVisibility(View.VISIBLE);
+        }
     }
 }

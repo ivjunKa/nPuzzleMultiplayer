@@ -1,15 +1,24 @@
 package kaplya.ia.mad.ica.han.nl.npuzzle;
 
+import android.animation.Animator;
+import android.app.Activity;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.Image;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.widget.Adapter;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -24,13 +33,15 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import kaplya.ia.mad.ica.han.nl.myapplication.R;
 
 /**
  * Created by Iv on 3-5-2015.
  */
-public class PuzzleAdapter extends BaseAdapter{
+public class PuzzleAdapter extends BaseAdapter {
     private Context context;
     private ArrayList<Tile> tiles;
 
@@ -45,6 +56,7 @@ public class PuzzleAdapter extends BaseAdapter{
     private ViewGroup parent;
 
 
+
     private DarkTile darkTile = new DarkTile();
     FirebaseDatabase database = FirebaseDatabase.getInstance();
     final DatabaseReference myRef = database.getInstance().getReference();
@@ -53,28 +65,20 @@ public class PuzzleAdapter extends BaseAdapter{
         this.context = context;
         this.myType = myType;
         this.parent = parent;
-        Log.d("PuzzleAdapter", "this is myType : " + myType);
 
         opponentType = (myType == "host") ? "guest" : "host";
-
-        Log.d("PuzzleAdapter", "this is opponentType : " + opponentType);
-
         myTurn = (myType == "host") ? true : false;
-
-        Log.d("PuzzleAdapter", "this is myTurn : " + myTurn);
-
         myRef.child("users").child("siv").child(myType).setValue(myTurn);
-
         createListenerForOpponentActions(myType);
         GameActivity.initTurnIndicator(myTurn);
         this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
         this.tiles = tiles;
         imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
         imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
-        //Log.d("PuzzleAdapter", "My turn is" + myTurn);
 
 
         setTileAddrInDatabase();
+        //GameActivity.resetHintValue();
 
 
         new android.os.Handler().postDelayed(
@@ -85,6 +89,7 @@ public class PuzzleAdapter extends BaseAdapter{
                 },
                 3000);
         //this one controlls the positions of the tiles
+        myRef.child("users").child("siv").child("hintNotifier").setValue(false);
         myRef.child("users").child("siv").child("tileaddr").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -96,16 +101,18 @@ public class PuzzleAdapter extends BaseAdapter{
                         results[i] = Integer.parseInt(items[i]);
                     } catch (NumberFormatException nfe) {
                         //NOTE: write something here if you need to recover from formatting errors
-                    };
+                    }
+                    ;
                 }
-                for(int i = 0; i< tileDatabaseArr.length; i++) {
+                for (int i = 0; i < tileDatabaseArr.length; i++) {
                     tileDatabaseArr[i] = results[i];
                 }
-                for(int i = 0; i< tileDatabaseArr.length; i++) {
+                for (int i = 0; i < tileDatabaseArr.length; i++) {
                     //Log.d("PuzzleAdapter", "These is new tempArr from database : " + tileDatabaseArr[i]);
                 }
                 //setTilesFromDatabase();
             }
+
             @Override
             public void onCancelled(DatabaseError databaseError) {
 
@@ -124,6 +131,23 @@ public class PuzzleAdapter extends BaseAdapter{
 //            }
 //        });
 
+        myRef.child("users").child("siv").child("hintNotifier").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if((Boolean)dataSnapshot.getValue()){
+                    notifyHint(GameActivity.hintValue);
+                }
+                else{
+                    //refreshHint();
+                    clearHints();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
     }
 
     public int getCount() {
@@ -187,7 +211,7 @@ public class PuzzleAdapter extends BaseAdapter{
                         }
                     }
                     else{
-                        setHint(position, 50);
+                        setHint(position,80);
                     }
                 }
             });
@@ -201,11 +225,11 @@ public class PuzzleAdapter extends BaseAdapter{
     public Integer getBlankPuzzle(int pos){
         int divider = (int) Math.sqrt(PUZZLE_CHUNKS);
         //find horizontal
-        if(checkHorizontalPosition(pos, divider)!=null){
+        if(checkHorizontalPosition(pos, divider) != null) {
             return checkHorizontalPosition(pos, divider);
         }
         //find vertical
-        else if(checkVerticalPosition(pos,divider)!=null){
+        else if(checkVerticalPosition(pos,divider) != null) {
             return checkVerticalPosition(pos, divider);
         }
         return null;
@@ -310,7 +334,7 @@ public class PuzzleAdapter extends BaseAdapter{
         Tile lastTile = tiles.get(tiles.size()-1);
         Tile blankTile = tiles.get(blankPos);
         tiles.set(blankPos,lastTile);
-        tiles.set(tiles.size()-1,blankTile);
+        tiles.set(tiles.size() - 1, blankTile);
         //setting the last tile an id of empty tile
         for(int i =0;i<tiles.size();i++){
             //Log.d("Puzzle","Shuffled tiles are+"+tiles.get(i).getTileId());
@@ -331,6 +355,8 @@ public class PuzzleAdapter extends BaseAdapter{
         //user have swapped the tiles,next user can do something
 
         notifyDataSetChanged();
+        //GameActivity.hintGiven = false;
+        clearHints();
     }
 
     public static int getStepsCount(){
@@ -373,7 +399,7 @@ public class PuzzleAdapter extends BaseAdapter{
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 Log.d("PuzzleAdapter", "this is Listener for my type : " + myTurn);
-                myTurn = (Boolean)dataSnapshot.getValue();
+                myTurn = (Boolean) dataSnapshot.getValue();
                 GameActivity.initTurnIndicator(myTurn);
 
             }
@@ -385,23 +411,79 @@ public class PuzzleAdapter extends BaseAdapter{
         });
     }
     public void setHint(int position,int opacity) {
+        boolean foundedChanged = clearHints();
+        //if clicked hint is still clicked we don`t need to mark it as clicked again
+        if(position != GameActivity.hintValue || foundedChanged == false){
+        Bitmap bitmap = tiles.get(position).getTileBitmap();
+        Bitmap mutableBitmap = bitmap.isMutable()
+                    ? bitmap
+                    : bitmap.copy(Bitmap.Config.ARGB_8888, true);
+            Canvas canvas = new Canvas(mutableBitmap);
+            int colour = (opacity & 0xFF) << 24;
+            canvas.drawColor(colour, PorterDuff.Mode.DST_IN);
+
+            tiles.get(position).setTemporaryImage(mutableBitmap);
+            tiles.get(position).setIsChanged();
+            myRef.child("users").child("siv").child("hintValue").setValue(position);
+            GameActivity.hintGiven = true;
+            notifyDataSetChanged();
+        }
+    }
+    public boolean clearHints(){
+        boolean foundedChanged = false;
+        for(int i = 0; i<tiles.size(); i++){
+            if(tiles.get(i).wasChanged()){
+                tiles.get(i).restoreOriginalImage();
+                foundedChanged = true;
+            }
+        }
+        GameActivity.hintGiven = false;
+        notifyDataSetChanged();
+        return foundedChanged;
+    }
+    public void notifyHint(int position){
+
+        Bitmap bitmap = tiles.get(position).getTileBitmap();
+        Bitmap mutableBitmap = bitmap.isMutable()
+                ? bitmap
+                : bitmap.copy(Bitmap.Config.ARGB_8888, true);
+        Canvas canvas = new Canvas(mutableBitmap);
+        int colour = (80 & 0xFF) << 24;
+        canvas.drawColor(colour, PorterDuff.Mode.DST_IN);
+
+        tiles.get(position).setTemporaryImage(mutableBitmap);
+        tiles.get(position).setIsChanged();
+        notifyDataSetChanged();
+        new android.os.Handler().postDelayed(
+                new Runnable() {
+                    public void run() {
+                        myRef.child("users").child("siv").child("hintNotifier").setValue(false);
+                    }
+                },
+                3000);
+//        final Timer timer = new Timer();
+//        TimerTask timerTask = new TimerTask() {
+//            @Override
+//            public void run() {
+//                //This task will change the opacity of the given tile
+//                Log.d("PuzzleAdapter", "Setting hint notifier value");
+//                myRef.child("users").child("siv").child("hintNotifier").setValue(false);
+//                timer.cancel();
+//            }
+//        };
+//        timer.scheduleAtFixedRate(timerTask, 3000, 6000);
+
+    }
+    public void refreshHint(){
         for(int i = 0; i<tiles.size(); i++){
             if(tiles.get(i).wasChanged()){
                 tiles.get(i).restoreOriginalImage();
             }
         }
         notifyDataSetChanged();
-        Bitmap bitmap = tiles.get(position).getTileBitmap();
-
-        Bitmap mutableBitmap = bitmap.isMutable()
-                ? bitmap
-                : bitmap.copy(Bitmap.Config.ARGB_8888, true);
-        Canvas canvas = new Canvas(mutableBitmap);
-        int colour = (opacity & 0xFF) << 24;
-        canvas.drawColor(colour, PorterDuff.Mode.DST_IN);
-
-        tiles.get(position).setTemporaryImage(mutableBitmap);
-        tiles.get(position).setIsChanged();
-        notifyDataSetChanged();
     }
+    public void notifyOpponent(){
+        myRef.child("users").child("siv").child("hintNotifier").setValue(true);
+    }
+
 }
