@@ -1,11 +1,15 @@
 package kaplya.ia.mad.ica.han.nl.npuzzle;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -29,13 +33,13 @@ import kaplya.ia.mad.ica.han.nl.myapplication.R;
  * Created by Iv on 3-1-2017.
  */
 public class MultiPlayerStartScreen extends ActionBarActivity {
-    EditText userName;
+    private EditText userNameField;
     public ListView mListView;
     String[] games_array = new String[] {};
     public static List<String> games_list;
     public static ArrayAdapter<String> arrayAdapter;
-
-    public FirebaseRoomListener firebaseRoomListener;
+    private String selectedHostName = null;
+    private String userName = null;
 
 
     @Override
@@ -48,7 +52,7 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
 
         initDatabase();
         mListView = (ListView) findViewById(R.id.list_avialable_games);
-        userName   = (EditText)findViewById(R.id.user_name_provider);
+        userNameField   = (EditText)findViewById(R.id.user_name_provider);
         // Initializing a new String Array
         // Create a List from String Array elements
         games_list = new ArrayList<String>(Arrays.asList(games_array));
@@ -56,29 +60,78 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
         arrayAdapter = new ArrayAdapter<String>
                 (this, android.R.layout.simple_list_item_1, games_list);
         mListView.setAdapter(arrayAdapter);
+        addGameSelectorToGameList();
         Button addNewGameButton = (Button)findViewById(R.id.button_new_game);
+        Intent intent = getIntent();
+        if(intent.hasExtra("gameOver")){
+            myRef.child("users").child(intent.getStringExtra("instanceName")). removeValue();
+        }
         //firebaseRoomListener = new FirebaseRoomListener("siv",null);
         addNewGameButton.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MultiPlayerStartScreen.this, MainActivity.class);
-                intent.putExtra("multiplayer", true);
-                intent.putExtra("username", userName.getText().toString());
-                startActivity(intent);
+                userName = userNameField.getText().toString();
+                Log.d("MultiplayerStartScreen", "UserName is: " + userName.length());
+                if(userName.length() == 0){
+                    new AlertDialog.Builder(MultiPlayerStartScreen.this)
+                            .setTitle("No host name is specified")
+                            .setMessage("Specify host name")
+                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // continue with delete
+                                }
+                            })
+                            .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // do nothing
+                                }
+                            })
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
+                }
+                else{
+                    Intent intent = new Intent(MultiPlayerStartScreen.this, MainActivity.class);
+                    intent.putExtra("multiplayer", true);
+                    intent.putExtra("username", userName);
+                    intent.putExtra("selectedHostName", userName);
+                    startActivity(intent);
+                }
+
             }
         });
         Button joinGame = (Button)findViewById(R.id.button_join_game);
         joinGame.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MultiPlayerStartScreen.this, GameActivity.class);
-                //Intent intent = new Intent(MultiPlayerStartScreen.this, GameActivity.class);
-                //Log.d("MultiplayerStartScreen", "Context is : " + MultiPlayerStartScreen.this.toString());
-                //Log.d("MultiplayerStartScreen", "intent is : " + intent.toString());
-                //firebaseRoomListener.setContext(MultiPlayerStartScreen.this, intent);
-                startActivity(intent);
-                myRef.child("users").child("siv").child("status").setValue("ready_to_play");
+                if(selectedHostName == null){
+                    new AlertDialog.Builder(MultiPlayerStartScreen.this)
+                            .setTitle("No room specified")
+                            .setMessage("Choose the room name")
+                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // continue with delete
+                                }
+                            })
+                            .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // do nothing
+                                }
+                            })
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
+                }
+                else{
+                    Intent intent = new Intent(MultiPlayerStartScreen.this, GameActivity.class);
+                    //Intent intent = new Intent(MultiPlayerStartScreen.this, GameActivity.class);
+                    //Log.d("MultiplayerStartScreen", "Context is : " + MultiPlayerStartScreen.this.toString());
+                    //Log.d("MultiplayerStartScreen", "intent is : " + intent.toString());
+                    //firebaseRoomListener.setContext(MultiPlayerStartScreen.this, intent);
+                    intent.putExtra("username", userName);
+                    intent.putExtra("selectedHostName", selectedHostName);
+                    startActivity(intent);
+                    myRef.child("users").child(selectedHostName).child("status").setValue("ready_to_play");
 
+                }
             }
         });
     }
@@ -96,6 +149,7 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
         myRef.child("users").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Log.d("MultiplayerStartScreen","This is our list: "+dataSnapshot.getKey().toString());
                 updateList(dataSnapshot.getKey().toString());
             }
 
@@ -117,6 +171,21 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
             @Override
             public void onCancelled(DatabaseError databaseError) {
 
+            }
+        });
+    }
+    public void addGameSelectorToGameList(){
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                Log.d("MultiplayerStartScreen", "You choose player: " + games_list.get(i));
+                Log.d("MultiplayerStartScreen", "List length is: " + adapterView.getChildCount());
+
+                for(int j = 0; j<adapterView.getChildCount();j++){
+                    adapterView.getChildAt(j).setBackgroundColor(Color.parseColor("#FAFAFA"));
+                }
+                view.setBackgroundColor(Color.parseColor("#00ff00"));
+                selectedHostName = games_list.get(i);
             }
         });
     }

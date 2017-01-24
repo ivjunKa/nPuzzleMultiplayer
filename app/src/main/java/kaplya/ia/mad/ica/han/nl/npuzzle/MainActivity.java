@@ -31,7 +31,7 @@ public class MainActivity extends ActionBarActivity {
     private String difficulty = "Medium";
     private TextView textDifficulty = null;
     private int selectedDrawableResource = 0;
-    private EditText roomName = null;
+
     private boolean GameTypeMultiplayer = false;
     private String userName;
 
@@ -44,15 +44,15 @@ public class MainActivity extends ActionBarActivity {
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         //adding reference to table
         final DatabaseReference myRef = database.getInstance().getReference();
-        roomName = (EditText)findViewById(R.id.room_name);
-        Intent previousIntent = getIntent();
+
+        final Intent previousIntent = getIntent();
         if (previousIntent.hasExtra("multiplayer")) {
             GameTypeMultiplayer = true;
             userName = previousIntent.getStringExtra("username");
         }
         else {
             GameTypeMultiplayer = false;
-            roomName.setVisibility(View.GONE);
+
         }
         textDifficulty = (TextView)findViewById(R.id.text_difficulty);
         textDifficulty.setText(difficulty);
@@ -60,15 +60,10 @@ public class MainActivity extends ActionBarActivity {
         startButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
-                //we can pass the drawableId to the GameActivity so we can chunk the image in the GameActivity instead
-                //of chunking it here and passing via Intent
-                int drawableId = getSelectedImage(imgSelectorGroup.getCheckedRadioButtonId());
                 String drawableName = getSelectedImageName(imgSelectorGroup.getCheckedRadioButtonId());
-                ImageView view = (ImageView)findViewById(drawableId);
                 numberOfChunks = getDifficulty();
-                //ArrayList<Bitmap> chunkedImage = splitImage(view, numberOfChunks);
                 Intent nextIntent = new Intent();
-                if (GameTypeMultiplayer) {
+                //if (GameTypeMultiplayer) {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);
                     DatabaseReference statusRef = myRef.child("users").child(userName).child("status");
                     DatabaseReference imageName = myRef.child("users").child(userName).child("imgname");
@@ -78,16 +73,13 @@ public class MainActivity extends ActionBarActivity {
                     imageName.setValue(drawableName);
 
                     //imageArray.setValue(chunkedImage);
-                }
-                else {
-                    nextIntent.setClass(MainActivity.this,GameActivity.class);
-                }
-                //nextIntent.putParcelableArrayListExtra("chunkedImage", chunkedImage);
-                nextIntent.putExtra("imgDrawableResource", selectedDrawableResource);
-                nextIntent.putExtra("chunksTotal",numberOfChunks);
-                nextIntent.putExtra("drawableName",drawableName);
+                //}
+//                else {
+//                    nextIntent.setClass(MainActivity.this,GameActivity.class);
+//                }
+                nextIntent.putExtra("username", userName);
                 nextIntent.putExtra("host",true);
-                //nextIntent.putExtra("drawableId", drawableId);
+                nextIntent.putExtra("selectedHostName", previousIntent.getStringExtra("selectedHostName"));
                 Log.d("MainActivity", "this is our main activity intent " + nextIntent.toString());
                 startActivity(nextIntent);
             }

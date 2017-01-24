@@ -1,7 +1,9 @@
 package kaplya.ia.mad.ica.han.nl.npuzzle;
 
 import android.annotation.TargetApi;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
@@ -30,6 +32,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.EventListener;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,18 +47,27 @@ import kaplya.ia.mad.ica.han.nl.myapplication.R;
 public class GameActivity extends ActionBarActivity {
     //private ArrayList<Bitmap> chunked = null;
     private ArrayList<Bitmap> newChunked = null;
-    private static int imgResource = 0;
+
     private static Context mContext;
     private PuzzleAdapter adapter = null;
     public static String imageName;
     public static ImageView view;
     public int difficulty;
-    private boolean myTurn;
+
     public static TextView turnIndicator;
     public static Button sendHint;
     public Button resolve;
     public static int hintValue;
     public static boolean hintGiven = false;
+    public static String hostName;
+    public String playerType;
+    private GridView grid;
+    private ValueEventListener statusEventListener;
+
+    private FirebaseDatabase database;
+    //adding reference to table
+    private DatabaseReference myRef;
+
     @Override
     //this was totally changed, instead of using extern firebase room listener i`m using listener in this class
     //so now we both need to connect and THEN we going to init the game
@@ -64,6 +76,8 @@ public class GameActivity extends ActionBarActivity {
     //and while host is waiting at guest i`ll place an image like placeholder at the gridview
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        database = FirebaseDatabase.getInstance();
+        myRef = database.getReference();
         setContentView(R.layout.activity_game);
         mContext = this.getApplicationContext();
         turnIndicator = (TextView)findViewById(R.id.turnIndicator);
@@ -72,14 +86,17 @@ public class GameActivity extends ActionBarActivity {
         sendHint.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(hintGiven){
+                if (hintGiven) {
                     adapter.notifyOpponent();
-                }
-                else{
+                } else {
                     Log.d("GameActivity", "No hint was chosen, choose hint first");
                 }
             }
         });
+        Intent intent = getIntent();
+        playerType = intent.hasExtra("host")? "host":"guest";
+        hostName = intent.getStringExtra("selectedHostName");
+        Log.d("GameActivity", "Host name is: " + hostName);
         initDatabase();
 
         resolve = (Button)findViewById(R.id.resolveButton);
@@ -98,21 +115,13 @@ public class GameActivity extends ActionBarActivity {
 
         ArrayList<Tile> tiles = new ArrayList<Tile>();
         setBlankTile(newChunked, tiles);
-        GridView grid = (GridView)findViewById(R.id.gridView);
-        Intent intent = getIntent();
-        String playerType;
-        if(intent.hasExtra("host")) {
-            playerType = "host";
-        }
-        else {
-            playerType = "guest";
-        }
-        adapter = new PuzzleAdapter(this,difficulty,tiles,playerType,grid);
+        grid = (GridView)findViewById(R.id.gridView);
+
+        adapter = new PuzzleAdapter(this,difficulty, tiles, playerType);
 
         grid.setAdapter(adapter);
         grid.setNumColumns((int) Math.sqrt(newChunked.size()));
         resolve.setVisibility(View.VISIBLE);
-
     }
 //    public static void initThisGame(int difficulty, String imageName){
 //        ArrayList<Tile> tiles = new ArrayList<Tile>();
@@ -235,11 +244,11 @@ public class GameActivity extends ActionBarActivity {
         return view;
     }
     public void initDatabase(){
-        final FirebaseDatabase database = FirebaseDatabase.getInstance();
-        //adding reference to table
-        final DatabaseReference myRef = database.getReference();
-        myRef.child("users").child("siv").child("hintValue").setValue(0);
-        myRef.child("users").child("siv").addValueEventListener(new ValueEventListener() {
+//        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+//        //adding reference to table
+//        final DatabaseReference myRef = database.getReference();
+        myRef.child("users").child(hostName).child("hintValue").setValue(0);
+        statusEventListener = new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 Log.d("GameActivity", "This is our changed data: " + dataSnapshot.getValue().toString());
@@ -248,30 +257,57 @@ public class GameActivity extends ActionBarActivity {
                     imageName = dataSnapshot.child("imgname").getValue().toString();
                     Long diff = (Long) dataSnapshot.child("difficulty").getValue();
                     difficulty = diff.intValue();
-                    myRef.child("users").child("siv").child("status").setValue("playing");
+                    myRef.child("users").child(hostName).child("status").setValue("playing");
                     initGame();
                 }
+                else if(dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("game_over")){
 
+                    new AlertDialog.Builder(GameActivity.this)
+                            .setTitle("The game is over")
+                            .setMessage("Game over, you will be redirected back to main page")
+                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // continue with delete
+                                    myRef.child("users").child(hostName).child("status").setValue("game_over_go_back");
+
+                                }
+                            })
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
+                }
+                else if(dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("game_over_go_back")){
+                    Log.d("GameActivity", "Ending up game");
+                    Intent intent = new Intent(GameActivity.this, MultiPlayerStartScreen.class);
+                    intent.putExtra("gameOver","yes");
+                    intent.putExtra("instanceName", hostName);
+                    myRef.child("users").child(hostName).removeEventListener(statusEventListener);
+                    myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
+                    myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
+                    //myRef.removeEventListener(adapter.getDarkTileListener());
+                    myRef.removeEventListener(adapter.getAllChildsListener());
+                    startActivity(intent);
+                    finish();
+                }
             }
-
             @Override
             public void onCancelled(DatabaseError databaseError) {
 
             }
-        });
-        myRef.child("users").child("siv").child("hintValue").addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                Long tempValue = (Long) dataSnapshot.getValue();
-                hintValue = tempValue.intValue();
-                Log.d("GameActivity", "This is the hint value" + dataSnapshot.getValue());
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-
-            }
-        });
+        };
+        myRef.child("users").child(hostName).addValueEventListener(statusEventListener);
+//        myRef.child("users").child(hostName).child("hintValue").addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(DataSnapshot dataSnapshot) {
+//                Long tempValue = (Long) dataSnapshot.getValue();
+//                hintValue = tempValue.intValue();
+//                Log.d("GameActivity", "This is the hint value" + dataSnapshot.getValue());
+//            }
+//
+//            @Override
+//            public void onCancelled(DatabaseError databaseError) {
+//
+//            }
+//        });
     }
     public static void initTurnIndicator(Boolean turn) {
         String textInTurnIndicator = turn ? "Your turn" : "Opponents turn";
@@ -284,4 +320,29 @@ public class GameActivity extends ActionBarActivity {
             sendHint.setVisibility(View.VISIBLE);
         }
     }
+
+    @Override
+    public void onBackPressed() {
+
+        new AlertDialog.Builder(GameActivity.this)
+                .setTitle("Leave game")
+                .setMessage("Do you want to quit the game?")
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // continue with delete
+                        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+                        //adding reference to table
+                        final DatabaseReference myRef = database.getReference();
+                        myRef.child("users").child(hostName).child("status").setValue("game_over");
+                    }
+                })
+                .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // do nothing
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+
 }
