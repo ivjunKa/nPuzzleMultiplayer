@@ -111,6 +111,7 @@ public class GameActivity extends ActionBarActivity {
     }
     private void initGame(){
         view = getCustomImageView(imageName);
+
         newChunked = splitImage(view, difficulty);
 
         ArrayList<Tile> tiles = new ArrayList<Tile>();
@@ -156,19 +157,19 @@ public class GameActivity extends ActionBarActivity {
                 break;
             case R.id.action_shuffle:
                 Log.d("Puzzle", "SHUFFLE");
-                adapter.shuffleTiles();
+                //adapter.shuffleTiles();
+                adapter.shuffleWhilePlaying();
                 break;
             default: break;
         }
         return super.onOptionsItemSelected(item);
     }
-    public static void gotoWin(Context c){
+    public void gotoWin(Context c){
         Intent intent = new Intent(c, WinActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra("stepsCount",PuzzleAdapter.getStepsCount());
         //intent.putExtra("imgSolved", imgResource);
-        intent.putExtra("imgSolved", imageName);
-
+        //intent.putExtra("imgSolved", imageName);
         c.startActivity(intent);
     }
     public static Context getAppContext(){
@@ -281,25 +282,26 @@ public class GameActivity extends ActionBarActivity {
                     intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                     intent.putExtra("gameOver", "yes");
                     intent.putExtra("instanceName", hostName);
-                    Log.d("GameActivity", "Adapter is" + adapter);
-
-                        Log.d("GameActivity", "Trying to remove Status listener...");
-                        myRef.child("users").child(hostName).removeEventListener(statusEventListener);
-                        Log.d("GameActivity", "Status listener have been removed");
-                        if(adapter!=null){
-                            myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
-                            myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
-                            myRef.removeEventListener(adapter.getAllChildsListener());
-                        }
-                    //myRef.removeEventListener(adapter.getDarkTileListener());
-                    myRef.child("users").child(hostName).removeValue();
+//                    Log.d("GameActivity", "Adapter is" + adapter);
+//
+//                        Log.d("GameActivity", "Trying to remove Status listener...");
+//                        myRef.child("users").child(hostName).removeEventListener(statusEventListener);
+//                        Log.d("GameActivity", "Status listener have been removed");
+//                        if(adapter!=null){
+//                            myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
+//                            myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
+//                            myRef.removeEventListener(adapter.getAllChildsListener());
+//                        }
+//                    //myRef.removeEventListener(adapter.getDarkTileListener());
+//                    myRef.child("users").child(hostName).removeValue();
+                    cleanGame();
                     startActivity(intent);
                     finish();
-
                     //Moet voor initDatabase() gebeuren want dan wordt listener niet 2 keer uitgevoerd
-
-
-
+                }
+                else if(dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("game_win")){
+                    cleanGame();
+                    gotoWin(GameActivity.this);
                 }
             }
             @Override
@@ -357,5 +359,18 @@ public class GameActivity extends ActionBarActivity {
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .show();
     }
+    public void cleanGame(){
+        Log.d("GameActivity", "Adapter is" + adapter);
 
+        Log.d("GameActivity", "Trying to remove Status listener...");
+        myRef.child("users").child(hostName).removeEventListener(statusEventListener);
+        Log.d("GameActivity", "Status listener have been removed");
+        if(adapter!=null){
+            myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
+            myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
+            myRef.removeEventListener(adapter.getAllChildsListener());
+        }
+        //myRef.removeEventListener(adapter.getDarkTileListener());
+        myRef.child("users").child(hostName).removeValue();
+    }
 }

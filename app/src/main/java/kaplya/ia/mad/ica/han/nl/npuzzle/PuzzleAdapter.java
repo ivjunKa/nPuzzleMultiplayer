@@ -45,7 +45,7 @@ import kaplya.ia.mad.ica.han.nl.myapplication.R;
 public class PuzzleAdapter extends BaseAdapter {
     private Context context;
     private ArrayList<Tile> tiles;
-
+    private ArrayList<Tile> tilesBackup;
     private int PUZZLE_CHUNKS;
     private int imageWidth, imageHeight;
     public static int stepsCount = 0;
@@ -72,9 +72,14 @@ public class PuzzleAdapter extends BaseAdapter {
         GameActivity.initTurnIndicator(myTurn);
         this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
         this.tiles = tiles;
+        this.tilesBackup = tiles;
         imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
         imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
         setTileAddrInDatabase();
+        //Setting start position of the dark tile
+        myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileNewPosition").setValue(tiles.size() - 1);
+        //darkTile.setNewPosition(tiles.size() - 1);
+
         //GameActivity.resetHintValue();
         new android.os.Handler().postDelayed(
                 new Runnable() {
@@ -101,13 +106,11 @@ public class PuzzleAdapter extends BaseAdapter {
         for(int i=0;i<tileDatabaseArr.length;i++){
             tileDatabaseArr[i] = tiles.get(i).getTileId();
         }
-        DatabaseReference imageArray = myRef.child("users").child(GameActivity.hostName).child("tileaddr");
-        myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileNewPosition").setValue(tiles.size() - 1);
-        darkTile.setNewPosition(tiles.size() - 1);
+        myRef.child("users").child(GameActivity.hostName).child("tileaddr").setValue(Arrays.toString(tileDatabaseArr));
+        //myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileNewPosition").setValue(tiles.size() - 1);
+        //darkTile.setNewPosition(tiles.size() - 1);
 
-        imageArray.setValue(Arrays.toString(tileDatabaseArr));
         //attachGlobalUserListener();
-
     }
 
     public long getItemId(int position) {
@@ -246,8 +249,9 @@ public class PuzzleAdapter extends BaseAdapter {
             }
         }
         notifyDataSetChanged();
-        darkTile.setNewPosition(tiles.size() - 1);
-        checkWin();
+        //darkTile.setNewPosition(tiles.size() - 1);
+        setTileAddrInDatabase();
+        //checkWin();
     }
 
     public void checkWin(){
@@ -257,7 +261,8 @@ public class PuzzleAdapter extends BaseAdapter {
         }
         if(isSorted(tileIdArr)){
             //Log.d("Puzzle","WIN!!");
-            GameActivity.gotoWin(GameActivity.getAppContext());
+            myRef.child("users").child(GameActivity.hostName).child("status").setValue("game_win");
+            //GameActivity.gotoWin(GameActivity.getAppContext());
         }
     }
     public void shuffleTiles(){
@@ -278,10 +283,9 @@ public class PuzzleAdapter extends BaseAdapter {
             //Log.d("Puzzle","Shuffled tiles are+"+tiles.get(i).getTileId());
         }
         darkTile.setNewPosition(tiles.size() - 1);
-
+        setTileAddrInDatabase();
         stepsCount = 0;
         notifyDataSetChanged();
-
     }
     //this function swaps founded dark tile with clicked tile
     public void setTilesFromDatabase(){
@@ -295,6 +299,7 @@ public class PuzzleAdapter extends BaseAdapter {
         notifyDataSetChanged();
         //GameActivity.hintGiven = false;
         clearHints();
+        setTileAddrInDatabase();
     }
 
     public static int getStepsCount(){
@@ -465,8 +470,9 @@ public class PuzzleAdapter extends BaseAdapter {
         for (int i = 0; i < tileDatabaseArr.length; i++) {
             tileDatabaseArr[i] = results[i];
         }
-        for (int i = 0; i < tileDatabaseArr.length; i++) {
-            //Log.d("PuzzleAdapter", "These is new tempArr from database : " + tileDatabaseArr[i]);
+            if(isSorted(tileDatabaseArr)){
+            //GameActivity.gotoWin(GameActivity.getAppContext());
+            myRef.child("users").child(GameActivity.hostName).child("status").setValue("game_win");
         }
     }
     public void handleDBDarkTileSwapping(Long darkTileOPos, Long darkTileNPos){
@@ -515,5 +521,19 @@ public class PuzzleAdapter extends BaseAdapter {
     }
     public ChildEventListener getAllChildsListener(){
         return allChildsListener;
+    }
+    public void shuffleWhilePlaying(){
+        Tile temp;
+        for(int i= 0; i< tiles.size() -1; i++){
+            for(int j =1; j< tiles.size() - i; j++){
+                if(tiles.get(j-1).getTileId() > tiles.get(j).getTileId()){
+                    temp = tiles.get(j-1);
+                    tiles.set(j-1,tiles.get(j));
+                    tiles.set(j,temp);
+                }
+            }
+        }
+        myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileNewPosition").setValue(tiles.size() - 1);
+        shuffleTiles();
     }
 }
