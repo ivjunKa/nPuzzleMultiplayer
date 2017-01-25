@@ -278,15 +278,28 @@ public class GameActivity extends ActionBarActivity {
                 else if(dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("game_over_go_back")){
                     Log.d("GameActivity", "Ending up game");
                     Intent intent = new Intent(GameActivity.this, MultiPlayerStartScreen.class);
-                    intent.putExtra("gameOver","yes");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    intent.putExtra("gameOver", "yes");
                     intent.putExtra("instanceName", hostName);
-                    myRef.child("users").child(hostName).removeEventListener(statusEventListener);
-                    myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
-                    myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
+                    Log.d("GameActivity", "Adapter is" + adapter);
+
+                        Log.d("GameActivity", "Trying to remove Status listener...");
+                        myRef.child("users").child(hostName).removeEventListener(statusEventListener);
+                        Log.d("GameActivity", "Status listener have been removed");
+                        if(adapter!=null){
+                            myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
+                            myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
+                            myRef.removeEventListener(adapter.getAllChildsListener());
+                        }
                     //myRef.removeEventListener(adapter.getDarkTileListener());
-                    myRef.removeEventListener(adapter.getAllChildsListener());
+                    myRef.child("users").child(hostName).removeValue();
                     startActivity(intent);
                     finish();
+
+                    //Moet voor initDatabase() gebeuren want dan wordt listener niet 2 keer uitgevoerd
+
+
+
                 }
             }
             @Override

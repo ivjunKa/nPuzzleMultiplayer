@@ -40,14 +40,15 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
     public static ArrayAdapter<String> arrayAdapter;
     private String selectedHostName = null;
     private String userName = null;
-
-
+    private ChildEventListener listListener = null;
+    private FirebaseDatabase database;
+    private DatabaseReference myRef;
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.multiplayer_game_list);
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        final DatabaseReference myRef = database.getInstance().getReference();
+        database = FirebaseDatabase.getInstance();
+        myRef = database.getInstance().getReference();
 
 
         initDatabase();
@@ -63,6 +64,7 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
         addGameSelectorToGameList();
         Button addNewGameButton = (Button)findViewById(R.id.button_new_game);
         Intent intent = getIntent();
+        //Moet voor initDatabase() gebeuren want dan wordt listener niet 2 keer uitgevoerd
         if(intent.hasExtra("gameOver")){
             myRef.child("users").child(intent.getStringExtra("instanceName")). removeValue();
         }
@@ -94,6 +96,8 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
                     intent.putExtra("multiplayer", true);
                     intent.putExtra("username", userName);
                     intent.putExtra("selectedHostName", userName);
+                    //finish();
+                    //intent.setFlags(intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                     startActivity(intent);
                 }
 
@@ -128,6 +132,7 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
                     //firebaseRoomListener.setContext(MultiPlayerStartScreen.this, intent);
                     intent.putExtra("username", userName);
                     intent.putExtra("selectedHostName", selectedHostName);
+                    //intent.setFlags(intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                     startActivity(intent);
                     myRef.child("users").child(selectedHostName).child("status").setValue("ready_to_play");
 
@@ -142,37 +147,43 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
         arrayAdapter.notifyDataSetChanged();
     }
     public void initDatabase(){
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        //adding reference to table
-        final DatabaseReference myRef = database.getReference();
+        Log.d("MultiplayerStartScreen", "Init database");
+        if(listListener == null){
+            Log.d("MultiplayerStartScreen", "Creating listener");
+            listListener = new ChildEventListener() {
+                @Override
+                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                    Log.d("MultiplayerStartScreen", "This is our list: " + dataSnapshot.getKey().toString());
+                    updateList(dataSnapshot.getKey().toString());
+                }
 
-        myRef.child("users").addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                Log.d("MultiplayerStartScreen","This is our list: "+dataSnapshot.getKey().toString());
-                updateList(dataSnapshot.getKey().toString());
-            }
+                @Override
+                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
 
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                }
 
-            }
+                @Override
+                public void onChildRemoved(DataSnapshot dataSnapshot) {
+                        for(int i = 0; i<games_list.size(); i++){
+                            if(games_list.get(i).equalsIgnoreCase(dataSnapshot.getKey())){
+                                games_list.remove(i);
+                                arrayAdapter.notifyDataSetChanged();
+                            }
+                        }
+                }
 
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                @Override
+                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
-            }
+                }
 
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
 
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-
-            }
-        });
+                }
+            };
+            myRef.child("users").addChildEventListener(listListener);
+        }
     }
     public void addGameSelectorToGameList(){
         mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -181,7 +192,7 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
                 Log.d("MultiplayerStartScreen", "You choose player: " + games_list.get(i));
                 Log.d("MultiplayerStartScreen", "List length is: " + adapterView.getChildCount());
 
-                for(int j = 0; j<adapterView.getChildCount();j++){
+                for (int j = 0; j < adapterView.getChildCount(); j++) {
                     adapterView.getChildAt(j).setBackgroundColor(Color.parseColor("#FAFAFA"));
                 }
                 view.setBackgroundColor(Color.parseColor("#00ff00"));
@@ -189,4 +200,17 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
             }
         });
     }
+
+    public void onResume(Bundle savedInstanceState){
+        super.onResume();
+        Log.d("MultiplayerStartScreen", "Activity resumed");
+    }
+//    protected void onDestroy(){
+//        super.onDestroy();
+//        Log.d("MultiplayerStartScreen", "Activity destroyed");
+//        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+//        //adding reference to table
+//        final DatabaseReference myRef = database.getReference();
+//        myRef.child("users").removeEventListener(listListener);
+//    }
 }

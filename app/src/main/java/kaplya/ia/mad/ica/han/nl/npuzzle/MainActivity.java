@@ -65,6 +65,7 @@ public class MainActivity extends ActionBarActivity {
                 Intent nextIntent = new Intent();
                 //if (GameTypeMultiplayer) {
                     nextIntent.setClass(MainActivity.this,GameActivity.class);
+                    Log.d("MainActivity", "Setting new user reference");
                     DatabaseReference statusRef = myRef.child("users").child(userName).child("status");
                     DatabaseReference imageName = myRef.child("users").child(userName).child("imgname");
                     DatabaseReference difficulty = myRef.child("users").child(userName).child("difficulty");
