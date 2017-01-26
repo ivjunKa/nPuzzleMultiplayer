@@ -14,6 +14,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.ContactsContract;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -31,6 +32,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.EventListener;
 import java.util.HashMap;
@@ -63,11 +65,13 @@ public class GameActivity extends ActionBarActivity {
     public String playerType;
     private GridView grid;
     private ValueEventListener statusEventListener;
-
+    private static String dialogTitle;
     private FirebaseDatabase database;
     //adding reference to table
     private DatabaseReference myRef;
-
+    private ChildEventListener allChildsListener;
+    public int voteTotal = 0;
+    private boolean voting = false;
     @Override
     //this was totally changed, instead of using extern firebase room listener i`m using listener in this class
     //so now we both need to connect and THEN we going to init the game
@@ -108,6 +112,7 @@ public class GameActivity extends ActionBarActivity {
         });
         sendHint.setVisibility(View.GONE);
         resolve.setVisibility(View.GONE);
+        createChildsListenerForSpecifiedUser(hostName);
     }
     private void initGame(){
         view = getCustomImageView(imageName);
@@ -158,7 +163,8 @@ public class GameActivity extends ActionBarActivity {
             case R.id.action_shuffle:
                 Log.d("Puzzle", "SHUFFLE");
                 //adapter.shuffleTiles();
-                adapter.shuffleWhilePlaying();
+                myRef.child("users").child(GameActivity.hostName).child("player_actions").setValue("shuffle");
+                //adapter.shuffleWhilePlaying();
                 break;
             default: break;
         }
@@ -245,9 +251,6 @@ public class GameActivity extends ActionBarActivity {
         return view;
     }
     public void initDatabase(){
-//        final FirebaseDatabase database = FirebaseDatabase.getInstance();
-//        //adding reference to table
-//        final DatabaseReference myRef = database.getReference();
         myRef.child("users").child(hostName).child("hintValue").setValue(0);
         statusEventListener = new ValueEventListener() {
             @Override
@@ -282,18 +285,6 @@ public class GameActivity extends ActionBarActivity {
                     intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                     intent.putExtra("gameOver", "yes");
                     intent.putExtra("instanceName", hostName);
-//                    Log.d("GameActivity", "Adapter is" + adapter);
-//
-//                        Log.d("GameActivity", "Trying to remove Status listener...");
-//                        myRef.child("users").child(hostName).removeEventListener(statusEventListener);
-//                        Log.d("GameActivity", "Status listener have been removed");
-//                        if(adapter!=null){
-//                            myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
-//                            myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
-//                            myRef.removeEventListener(adapter.getAllChildsListener());
-//                        }
-//                    //myRef.removeEventListener(adapter.getDarkTileListener());
-//                    myRef.child("users").child(hostName).removeValue();
                     cleanGame();
                     startActivity(intent);
                     finish();
@@ -310,19 +301,6 @@ public class GameActivity extends ActionBarActivity {
             }
         };
         myRef.child("users").child(hostName).addValueEventListener(statusEventListener);
-//        myRef.child("users").child(hostName).child("hintValue").addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(DataSnapshot dataSnapshot) {
-//                Long tempValue = (Long) dataSnapshot.getValue();
-//                hintValue = tempValue.intValue();
-//                Log.d("GameActivity", "This is the hint value" + dataSnapshot.getValue());
-//            }
-//
-//            @Override
-//            public void onCancelled(DatabaseError databaseError) {
-//
-//            }
-//        });
     }
     public static void initTurnIndicator(Boolean turn) {
         String textInTurnIndicator = turn ? "Your turn" : "Opponents turn";
@@ -368,9 +346,150 @@ public class GameActivity extends ActionBarActivity {
         if(adapter!=null){
             myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
             myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
-            myRef.removeEventListener(adapter.getAllChildsListener());
+            myRef.removeEventListener(getAllChildsListener());
         }
         //myRef.removeEventListener(adapter.getDarkTileListener());
         myRef.child("users").child(hostName).removeValue();
+    }
+    public void createChildsListenerForSpecifiedUser(String userName){
+        allChildsListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                switch (dataSnapshot.getKey()) {
+                    case "tileaddr":
+                        Log.d("ChildListenerCase", "Tileaddr was changed");
+                        adapter.handleDBTileArr(dataSnapshot.getValue().toString());
+                        break;
+                    /**
+                     * This is an listener for the hints made by opponent, when hintNotifier column changes to true method notifyHint() will be called
+                     * notifyHint() making a specified puzzle element appear and then changing value for of hintNotifier back to false.
+                     * When hintNotifier become false method clearHints() will be called. This one clearing all the higlighted puzzles(hints) that
+                     * were made.
+                     */
+                    case "hintNotifier":
+                        Log.d("ChildListenerCase", "HintNotifier was changed");
+                        if ((Boolean) dataSnapshot.getValue())
+                            adapter.notifyHint(hintValue);
+                        else
+                            adapter.clearHints();
+                        break;
+                    case "darkTile":
+                        Log.d("ChildListenerCase", "DarkTile was changed");
+                        if (dataSnapshot.hasChild("darkTileOldPosition") && dataSnapshot.hasChild("darkTileNewPosition")) {
+                            Long darkTileOPos = (Long) dataSnapshot.child("darkTileOldPosition").getValue();
+                            Long darkTileNPos = (Long) dataSnapshot.child("darkTileNewPosition").getValue();
+                            adapter.handleDBDarkTileSwapping(darkTileOPos, darkTileNPos);
+                            //setTilesFromDatabase(dataSnapshot.child("darkTileOldPosition").getValue().toString(), dataSnapshot.child("darkTileNewPosition").getValue().toString());
+                        }
+                        break;
+                    case "hintValue":
+                        Long tempValue = (Long) dataSnapshot.getValue();
+                        GameActivity.hintValue = tempValue.intValue();
+                        Log.d("GameActivity", "This is the hint value" + dataSnapshot.getValue());
+                        break;
+                    case "inGameActions":
+                        boolean everyoneVotedYes = checkIfEveryoneVotedYes(dataSnapshot);
+                        if(everyoneVotedYes){
+                            //do shuffle
+                            adapter.shuffleWhilePlaying();
+                        }
+                        //here we need to check if both childs answered yes and if the vote is still active
+//                        Log.d("GameActivity", "This is our changed game action: " + dataSnapshot.getKey());
+//
+//                        for(DataSnapshot snapshot : dataSnapshot.getChildren()){
+//                            Long snapshotValue = (Long) snapshot.getValue();
+//                            Log.d("InGameActions", "Snapshot value is " + snapshotValue);
+//                            Log.d("InGameActions", "Listener updates both players");
+//                            adapter.getInGameActions().setVoteTotal(snapshotValue.intValue(),snapshot.getKey().toString());
+//                            if(snapshotValue.intValue() == 2){
+//                                adapter.handleDBInGameActions(snapshot.getKey());
+//                                adapter.getInGameActions().setVoteTotal(0, snapshot.getKey().toString());
+//                            }
+//                        }
+                        break;
+                    case "player_actions":
+                        if (dataSnapshot.getValue().toString().equalsIgnoreCase("none")) {
+                            voting = false;
+                            //player type will be different for each game instance, so we can ensure that we both set vote value on false
+                            myRef.child("users").child(GameActivity.hostName).child("inGameActions").child(playerType).setValue(false);
+                            //myRef.child("users").child(GameActivity.hostName).child("inGameActions").child(adapter.getOpponentType()).setValue(false);
+                            Log.d("GameActivity", "Was changed back");
+                        }
+                        else {
+                            voting = true;
+                            initiatePlayerAction("shuffle");
+                            //initiatePlayerAction(dataSnapshot.getValue().toString());
+                        }
+
+                    default:
+                        Log.d("ChildListenerCase", "Nothing is happened");
+                        break;
+                }
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        };
+        myRef.child("users").child(userName).addChildEventListener(allChildsListener);
+    }
+    public ChildEventListener getAllChildsListener(){
+        return this.allChildsListener;
+    }
+    public void initiatePlayerAction(final String actionType){
+        Log.d("GameActivity", "Shuffle was initiated");
+        if(actionType == "shuffle"){
+            dialogTitle = "Tiles will be re-shuffeled";
+        }
+        else if(actionType == "changeDiff"){
+            dialogTitle = "Difficulty will be changed";
+        }
+        new AlertDialog.Builder(GameActivity.this)
+                .setTitle(dialogTitle)
+                .setMessage("Are you ok with this?")
+                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // continue with delete
+                        Log.d("GameActivity", "Type of the action is "+ actionType);
+                        //adapter.getInGameActions().vote(true,actionType);
+                        if(voting){
+                            adapter.getVoteController().vote(true);
+                        }
+
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // do nothing
+                        //adapter.getInGameActions().vote(false,actionType);
+                        adapter.getVoteController().vote(false);
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+    public boolean checkIfEveryoneVotedYes(DataSnapshot snapshot){
+        for (DataSnapshot sn : snapshot.getChildren()){
+            if((Boolean)sn.getValue() == false) {
+                return false;
+            }
+        }
+        return true;
     }
 }
