@@ -29,4 +29,10 @@ public class VoteController {
         }
         //if false - set my name to false and close vote
     }
+    public void setVoteType(String voteType){
+        this.voteType = voteType;
+    }
+    public String getVoteType(){
+        return this.voteType;
+    }
 }

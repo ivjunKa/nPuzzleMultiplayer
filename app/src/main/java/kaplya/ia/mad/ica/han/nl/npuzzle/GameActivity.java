@@ -148,13 +148,19 @@ public class GameActivity extends ActionBarActivity {
 
         switch(id){
             case R.id.menu_easy:
-                resetDiff(9);
+                //resetDiff(9);
+                myRef.child("users").child(GameActivity.hostName).child("player_actions").child("resetDiff").setValue(9);
+                //myRef.child("users").child(GameActivity.hostName).child("player_actions").setValue("reset_diff_09");
                 break;
             case R.id.menu_normal:
-                resetDiff(16);
+                myRef.child("users").child(GameActivity.hostName).child("player_actions").child("resetDiff").setValue(16);
+                //myRef.child("users").child(GameActivity.hostName).child("player_actions").setValue("reset_diff_16");
+                //resetDiff(16);
                 break;
             case R.id.menu_hard:
-                resetDiff(25);
+                //resetDiff(25);
+                myRef.child("users").child(GameActivity.hostName).child("player_actions").child("resetDiff").setValue(25);
+                //myRef.child("users").child(GameActivity.hostName).child("player_actions").setValue("reset_diff_25");
                 break;
             case R.id.action_quit:
                 Intent intent = new Intent(GameActivity.this,MainActivity.class);
@@ -396,7 +402,22 @@ public class GameActivity extends ActionBarActivity {
                         boolean everyoneVotedYes = checkIfEveryoneVotedYes(dataSnapshot);
                         if(everyoneVotedYes){
                             //do shuffle
-                            adapter.shuffleWhilePlaying();
+                            if(adapter.getVoteController().getVoteType().equalsIgnoreCase("shuffle")){
+                                adapter.shuffleWhilePlaying();
+                            }
+                            else{
+                                //do change difficulty
+                                Log.d("GameActivity", "Diff will be changed");
+                                view = getCustomImageView(imageName);
+
+                                newChunked = splitImage(view, difficulty);
+
+                                ArrayList<Tile> tiles = new ArrayList<Tile>();
+                                setBlankTile(newChunked, tiles);
+                                adapter.reinit(difficulty, tiles);
+                                grid.setNumColumns((int) Math.sqrt(newChunked.size()));
+                            }
+
                         }
                         //here we need to check if both childs answered yes and if the vote is still active
 //                        Log.d("GameActivity", "This is our changed game action: " + dataSnapshot.getKey());
@@ -417,13 +438,24 @@ public class GameActivity extends ActionBarActivity {
                             voting = false;
                             //player type will be different for each game instance, so we can ensure that we both set vote value on false
                             myRef.child("users").child(GameActivity.hostName).child("inGameActions").child(playerType).setValue(false);
-                            //myRef.child("users").child(GameActivity.hostName).child("inGameActions").child(adapter.getOpponentType()).setValue(false);
                             Log.d("GameActivity", "Was changed back");
+                            adapter.getVoteController().setVoteType("none");
+                            Log.d("GameActivity", "Vote type is" + adapter.getVoteController().getVoteType());
                         }
                         else {
+                            String voteType = "";
+                            if(dataSnapshot.hasChild("resetDiff")){
+                                voteType = "resetDiff";
+                                Long tempDiff = (Long)dataSnapshot.child("resetDiff").getValue();
+                                difficulty = tempDiff.intValue();
+                            }
+                            else{
+                                voteType = "shuffle";
+                            }
+                            adapter.getVoteController().setVoteType(voteType);
+                            Log.d("GameActivity", "Vote type is" + adapter.getVoteController().getVoteType());
                             voting = true;
-                            initiatePlayerAction("shuffle");
-                            //initiatePlayerAction(dataSnapshot.getValue().toString());
+                            initiatePlayerAction(voteType);
                         }
 
                     default:
@@ -457,7 +489,7 @@ public class GameActivity extends ActionBarActivity {
         if(actionType == "shuffle"){
             dialogTitle = "Tiles will be re-shuffeled";
         }
-        else if(actionType == "changeDiff"){
+        else if(actionType == "resetDiff"){
             dialogTitle = "Difficulty will be changed";
         }
         new AlertDialog.Builder(GameActivity.this)
@@ -466,8 +498,6 @@ public class GameActivity extends ActionBarActivity {
                 .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         // continue with delete
-                        Log.d("GameActivity", "Type of the action is "+ actionType);
-                        //adapter.getInGameActions().vote(true,actionType);
                         if(voting){
                             adapter.getVoteController().vote(true);
                         }
@@ -476,8 +506,6 @@ public class GameActivity extends ActionBarActivity {
                 })
                 .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
-                        // do nothing
-                        //adapter.getInGameActions().vote(false,actionType);
                         adapter.getVoteController().vote(false);
                     }
                 })

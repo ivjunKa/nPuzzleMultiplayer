@@ -87,7 +87,7 @@ public class PuzzleAdapter extends BaseAdapter {
 
         //darkTile.setNewPosition(tiles.size() - 1);
         voteController = new VoteController(myType);
-
+        Log.d("PuzzleAdapter", "Adapter was initilized");
         //GameActivity.resetHintValue();
         new android.os.Handler().postDelayed(
                 new Runnable() {
@@ -548,4 +548,25 @@ public class PuzzleAdapter extends BaseAdapter {
     public String getOpponentType(){
         return this.opponentType;
     }
+    public void reinit(int PUZZLE_CHUNKS, final ArrayList<Tile> tiles){
+        this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
+        this.tiles = tiles;
+        this.tilesBackup = tiles;
+        imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
+        imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
+        //setTileAddrInDatabase();
+        myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileOldPosition").removeValue();
+        myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileNewPosition").setValue(tiles.size() - 1);
+
+        new android.os.Handler().postDelayed(
+                new Runnable() {
+                    public void run() {
+                        shuffleTiles();
+                        //setTileAddrInDatabase();
+                    }
+                },
+                3000);
+        //notifyDataSetChanged();
+    }
+
 }
