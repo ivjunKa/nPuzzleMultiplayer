@@ -60,7 +60,7 @@ public class PuzzleAdapter extends BaseAdapter {
     public ValueEventListener opponentActionEventListener;
     public ValueEventListener darkTileEventListener;
     public ChildEventListener allChildsListener;
-    private DarkTile darkTile = new DarkTile();
+    private DarkTile darkTile;
     FirebaseDatabase database = FirebaseDatabase.getInstance();
     final DatabaseReference myRef = database.getInstance().getReference();
     //private InGameActions inGameActions;
@@ -68,7 +68,7 @@ public class PuzzleAdapter extends BaseAdapter {
     public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, final ArrayList<Tile> tiles, String myType) {
         this.context = context;
         this.myType = myType;
-
+        darkTile = new DarkTile();
         opponentType = (myType == "host") ? "guest" : "host";
         myTurn = (myType == "host") ? true : false;
         myRef.child("users").child(GameActivity.hostName).child(myType).setValue(myTurn);
@@ -118,24 +118,25 @@ public class PuzzleAdapter extends BaseAdapter {
     //sets tiles positions in database instance
     public void setTileAddrInDatabase(){
         tileDatabaseArr = new int[tiles.size()];
+
         for(int i=0;i<tileDatabaseArr.length;i++){
             tileDatabaseArr[i] = tiles.get(i).getTileId();
         }
+        Log.d("PuzzleAdapter", "TileDatabaseArr size before database insert is: "+ tileDatabaseArr.length);
         myRef.child("users").child(GameActivity.hostName).child("tileaddr").setValue(Arrays.toString(tileDatabaseArr));
-        //myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileNewPosition").setValue(tiles.size() - 1);
-        //darkTile.setNewPosition(tiles.size() - 1);
-
-        //attachGlobalUserListener();
+        Log.d("PuzzleAdapter", "Data is inserted " + tileDatabaseArr.length);
     }
     // create a new ImageView for each item referenced by the Adapter
     public View getView(final int position, final View convertView, final ViewGroup parent) {
         //Log.d("PuzzleAdapter","This is getView method of the Puzzle adapter");
 
         final ImageView imageView;
-        if (convertView == null) {
+        //ConvertView check temporarely disabled due to bug with the first tile LayoutParams after reshuffling
+//        if (convertView == null) {
                 // if it's not recycled, initialize some attributes
                 imageView = new ImageView(context);
                 imageView.setLayoutParams(new GridView.LayoutParams(imageWidth - 10, imageHeight));
+                //Log.d("PuzzleAdapter", "Tile width: " + imageWidth);
                 imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 imageView.setPadding(1, 1, 1, 1);
                 imageView.setOnClickListener(new View.OnClickListener() {
@@ -166,10 +167,10 @@ public class PuzzleAdapter extends BaseAdapter {
                     }
                 }
             });
-        } else {
-            //Log.d("PuzzleAdapter","This called in case of convertedView == null");
-            imageView = (ImageView) convertView;
-        }
+//        } else {
+//            //Log.d("PuzzleAdapter","This called in case of convertedView == null");
+//            imageView = (ImageView) convertView;
+//        }
         imageView.setImageBitmap(tiles.get(position).getTileBitmap());
         return imageView;
     }
@@ -293,6 +294,7 @@ public class PuzzleAdapter extends BaseAdapter {
             //Log.d("Puzzle","Shuffled tiles are+"+tiles.get(i).getTileId());
         }
         darkTile.setNewPosition(tiles.size() - 1);
+        Log.d("PuzzleAdapter", "Trying to renew tileaddr in database" + tileDatabaseArr.length);
         setTileAddrInDatabase();
         stepsCount = 0;
         notifyDataSetChanged();
@@ -305,9 +307,7 @@ public class PuzzleAdapter extends BaseAdapter {
         tiles.set(darkTile.getNewPosition(), foundedDarkTile);
         tiles.set(darkTile.getOldPosition(), clickedTile);
         //user have swapped the tiles,next user can do something
-
         notifyDataSetChanged();
-        //GameActivity.hintGiven = false;
         clearHints();
         setTileAddrInDatabase();
     }
@@ -322,7 +322,6 @@ public class PuzzleAdapter extends BaseAdapter {
                 Log.d("PuzzleAdapter", "this is Listener for my type : " + myTurn);
                 myTurn = (Boolean) dataSnapshot.getValue();
                 GameActivity.initTurnIndicator(myTurn);
-
             }
 
             @Override
@@ -401,81 +400,9 @@ public class PuzzleAdapter extends BaseAdapter {
         tiles.get(position).setIsChanged();
         notifyDataSetChanged();
     }
-//    public void createChildsListenerForSpecifiedUser(String userName){
-//        allChildsListener = new ChildEventListener() {
-//            @Override
-//            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-//
-//            }
-//
-//            @Override
-//            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-//                switch (dataSnapshot.getKey()) {
-//                    case "tileaddr":
-//                        Log.d("ChildListenerCase", "Tileaddr was changed");
-//                        handleDBTileArr(dataSnapshot.getValue().toString());
-//                        break;
-//                    /**
-//                     * This is an listener for the hints made by opponent, when hintNotifier column changes to true method notifyHint() will be called
-//                     * notifyHint() making a specified puzzle element appear and then changing value for of hintNotifier back to false.
-//                     * When hintNotifier become false method clearHints() will be called. This one clearing all the higlighted puzzles(hints) that
-//                     * were made.
-//                     */
-//                    case "hintNotifier":
-//                        Log.d("ChildListenerCase", "HintNotifier was changed");
-//                        if ((Boolean) dataSnapshot.getValue())
-//                            notifyHint(GameActivity.hintValue);
-//                        else
-//                            clearHints();
-//                        break;
-//                    case "darkTile":
-//                        Log.d("ChildListenerCase", "DarkTile was changed");
-//                        if (dataSnapshot.hasChild("darkTileOldPosition") && dataSnapshot.hasChild("darkTileNewPosition")) {
-//                            Long darkTileOPos = (Long) dataSnapshot.child("darkTileOldPosition").getValue();
-//                            Long darkTileNPos = (Long) dataSnapshot.child("darkTileNewPosition").getValue();
-//                            handleDBDarkTileSwapping(darkTileOPos, darkTileNPos);
-//                            //setTilesFromDatabase(dataSnapshot.child("darkTileOldPosition").getValue().toString(), dataSnapshot.child("darkTileNewPosition").getValue().toString());
-//                        }
-//                        break;
-//                    case "hintValue":
-//                        Long tempValue = (Long) dataSnapshot.getValue();
-//                        GameActivity.hintValue = tempValue.intValue();
-//                        Log.d("GameActivity", "This is the hint value" + dataSnapshot.getValue());
-//                        break;
-//                    case "inGameActions":
-//                        for(DataSnapshot snapshot : dataSnapshot.getChildren()){
-//                            if(snapshot.getValue() == 2){
-//                                handleDBInGameActions(snapshot.getKey());
-//                            }
-//                        }
-//                        break;
-//                    default:
-//                        Log.d("ChildListenerCase", "Nothing is happened");
-//                        break;
-//                }
-//            }
-//
-//            @Override
-//            public void onChildRemoved(DataSnapshot dataSnapshot) {
-//
-//            }
-//
-//            @Override
-//            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-//
-//            }
-//
-//            @Override
-//            public void onCancelled(DatabaseError databaseError) {
-//
-//            }
-//        };
-//
-//        myRef.child("users").child(userName).addChildEventListener(allChildsListener);
-//
-//    }
+
     public void handleDBTileArr(String dataSnapshotValue){
-        Log.d("ChildListenerCase", "Tileaddr was changed");
+        Log.d("PuzzleAdapter", "Tileaddr was changed");
         String[] items = dataSnapshotValue.replaceAll("\\[", "").replaceAll("\\]", "").replaceAll("\\s", "").split(",");
         int[] results = new int[items.length];
         for (int i = 0; i < items.length; i++) {
@@ -486,19 +413,19 @@ public class PuzzleAdapter extends BaseAdapter {
             }
             ;
         }
-        for (int i = 0; i < tileDatabaseArr.length; i++) {
-            tileDatabaseArr[i] = results[i];
-        }
-            if(isSorted(tileDatabaseArr)){
-            //GameActivity.gotoWin(GameActivity.getAppContext());
-            myRef.child("users").child(GameActivity.hostName).child("status").setValue("game_win");
+        Log.d("PuzzleAdapter", "TilebaseArr length is: " + tileDatabaseArr.length + " Result set from database length is: "+ results.length);
+//        for (int i = 0; i < tileDatabaseArr.length; i++) {
+//            tileDatabaseArr[i] = results[i];
+//        }
+        if(isSorted(results)){
+        myRef.child("users").child(GameActivity.hostName).child("status").setValue("game_win");
         }
     }
     public void handleDBDarkTileSwapping(Long darkTileOPos, Long darkTileNPos){
-        Log.d("PuzzleAdapter", "I`m in the swap handler right now");
+        //Log.d("PuzzleAdapter", "I`m in the swap handler right now");
         darkTile.setOldPosition(darkTileOPos.intValue());
         if (darkTile.getNewPosition() != darkTileNPos.intValue()) {
-            Log.d("PuzzleAdapter", "New position changed, need to do the swap now");
+            //Log.d("PuzzleAdapter", "New position changed, need to do the swap now");
             darkTile.setNewPosition(darkTileNPos.intValue());
             //myTurn = true;
             setTilesFromDatabase();
@@ -554,10 +481,8 @@ public class PuzzleAdapter extends BaseAdapter {
         this.tilesBackup = tiles;
         imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
         imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
-        //setTileAddrInDatabase();
         myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileOldPosition").removeValue();
         myRef.child("users").child(GameActivity.hostName).child("darkTile").child("darkTileNewPosition").setValue(tiles.size() - 1);
-
         new android.os.Handler().postDelayed(
                 new Runnable() {
                     public void run() {
@@ -566,7 +491,6 @@ public class PuzzleAdapter extends BaseAdapter {
                     }
                 },
                 3000);
-        //notifyDataSetChanged();
     }
 
 }

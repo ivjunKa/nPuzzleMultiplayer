@@ -72,12 +72,6 @@ public class MainActivity extends ActionBarActivity {
                     difficulty.setValue(numberOfChunks);
                     statusRef.setValue("waiting_for_guest");
                     imageName.setValue(drawableName);
-
-                    //imageArray.setValue(chunkedImage);
-                //}
-//                else {
-//                    nextIntent.setClass(MainActivity.this,GameActivity.class);
-//                }
                 nextIntent.putExtra("username", userName);
                 nextIntent.putExtra("host",true);
                 nextIntent.putExtra("selectedHostName", previousIntent.getStringExtra("selectedHostName"));

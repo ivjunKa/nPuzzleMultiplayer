@@ -16,13 +16,7 @@
         android:textAppearance="?android:attr/textAppearanceLarge" />
 
     <!--Base container for images and radio group-->
-    <EditText
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="textPersonName"
-        android:hint="Provide the room name"
-        android:ems="10"
-        android:id="@+id/room_name" />
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="200dp">

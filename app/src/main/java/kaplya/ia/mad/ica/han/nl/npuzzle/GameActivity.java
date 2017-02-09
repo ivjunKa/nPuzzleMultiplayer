@@ -23,6 +23,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import com.google.firebase.database.ChildEventListener;
@@ -99,10 +101,15 @@ public class GameActivity extends ActionBarActivity {
         });
         Intent intent = getIntent();
         playerType = intent.hasExtra("host")? "host":"guest";
+        if(playerType.equalsIgnoreCase("host")){
+            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(RadioGroup.LayoutParams.WRAP_CONTENT, RadioGroup.LayoutParams.WRAP_CONTENT);
+            llp.setMargins(0,250,0,0);
+            turnIndicator.setLayoutParams(llp);
+            turnIndicator.setText("Waiting for opponent.....");
+        }
         hostName = intent.getStringExtra("selectedHostName");
         Log.d("GameActivity", "Host name is: " + hostName);
         initDatabase();
-
         resolve = (Button)findViewById(R.id.resolveButton);
         resolve.setOnClickListener(new Button.OnClickListener() {
             @Override
@@ -268,6 +275,9 @@ public class GameActivity extends ActionBarActivity {
                     Long diff = (Long) dataSnapshot.child("difficulty").getValue();
                     difficulty = diff.intValue();
                     myRef.child("users").child(hostName).child("status").setValue("playing");
+                    LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(RadioGroup.LayoutParams.WRAP_CONTENT, RadioGroup.LayoutParams.WRAP_CONTENT);
+                    llp.setMargins(0, 0, 0, 0);
+                    turnIndicator.setLayoutParams(llp);
                     initGame();
                 }
                 else if(dataSnapshot.hasChild("status") && dataSnapshot.child("status").getValue().toString().equalsIgnoreCase("game_over")){
@@ -416,6 +426,7 @@ public class GameActivity extends ActionBarActivity {
                                 setBlankTile(newChunked, tiles);
                                 adapter.reinit(difficulty, tiles);
                                 grid.setNumColumns((int) Math.sqrt(newChunked.size()));
+                                myRef.child("users").child(GameActivity.hostName).child("player_actions").setValue("none");
                             }
 
                         }
@@ -519,5 +530,22 @@ public class GameActivity extends ActionBarActivity {
             }
         }
         return true;
+    }
+    public void displayGamePlaceholder(){
+        ImageView view = getCustomImageView("dog");
+
+        AlertDialog.Builder builder=new AlertDialog.Builder(GameActivity.this);
+        builder.setCancelable(true);
+        builder.setTitle("Waiting for opponent");
+        builder.setInverseBackgroundForced(true);
+        builder.setView(view);
+        AlertDialog alert=builder.create();
+        alert.show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d("GameActivity", "Activity is destroyed");
     }
 }
