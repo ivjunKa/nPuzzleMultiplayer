@@ -20,6 +20,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
@@ -81,7 +82,10 @@ public class GameActivity extends ActionBarActivity {
     //also an adapter and an gridview(listview in multiplayer screen)
     //and while host is waiting at guest i`ll place an image like placeholder at the gridview
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("SavedInstanceState", "The previous state is: " + savedInstanceState);
+        //savedInstanceState.clear();
         super.onCreate(savedInstanceState);
+
         database = FirebaseDatabase.getInstance();
         myRef = database.getReference();
         setContentView(R.layout.activity_game);
@@ -119,7 +123,7 @@ public class GameActivity extends ActionBarActivity {
         });
         sendHint.setVisibility(View.GONE);
         resolve.setVisibility(View.GONE);
-        createChildsListenerForSpecifiedUser(hostName);
+
     }
     private void initGame(){
         view = getCustomImageView(imageName);
@@ -129,12 +133,13 @@ public class GameActivity extends ActionBarActivity {
         ArrayList<Tile> tiles = new ArrayList<Tile>();
         setBlankTile(newChunked, tiles);
         grid = (GridView)findViewById(R.id.gridView);
-
+        Log.d("AdapterInGame", "Adapter is: " + adapter);
         adapter = new PuzzleAdapter(this,difficulty, tiles, playerType);
 
         grid.setAdapter(adapter);
         grid.setNumColumns((int) Math.sqrt(newChunked.size()));
         resolve.setVisibility(View.VISIBLE);
+        createChildsListenerForSpecifiedUser(hostName, adapter);
     }
 //    public static void initThisGame(int difficulty, String imageName){
 //        ArrayList<Tile> tiles = new ArrayList<Tile>();
@@ -362,12 +367,12 @@ public class GameActivity extends ActionBarActivity {
         if(adapter!=null){
             myRef.child("users").child(hostName).child("host").removeEventListener(adapter.getOpponentActionEventListener());
             myRef.child("users").child(hostName).child("guest").removeEventListener(adapter.getOpponentActionEventListener());
-            myRef.removeEventListener(getAllChildsListener());
+            myRef.child("users").child(hostName).removeEventListener(this.allChildsListener);
         }
         //myRef.removeEventListener(adapter.getDarkTileListener());
         myRef.child("users").child(hostName).removeValue();
     }
-    public void createChildsListenerForSpecifiedUser(String userName){
+    public void createChildsListenerForSpecifiedUser(String userName, final PuzzleAdapter adapter){
         allChildsListener = new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
@@ -379,6 +384,8 @@ public class GameActivity extends ActionBarActivity {
                 switch (dataSnapshot.getKey()) {
                     case "tileaddr":
                         Log.d("ChildListenerCase", "Tileaddr was changed");
+                        Log.d("ChildListenerCase", "Adapter is" + adapter);
+                        Log.d("AdapterTilesSize", "Tiles size in tileAddr listener is: " + adapter.getTilesSize() + " For player " + playerType);
                         adapter.handleDBTileArr(dataSnapshot.getValue().toString());
                         break;
                     /**
@@ -399,6 +406,7 @@ public class GameActivity extends ActionBarActivity {
                         if (dataSnapshot.hasChild("darkTileOldPosition") && dataSnapshot.hasChild("darkTileNewPosition")) {
                             Long darkTileOPos = (Long) dataSnapshot.child("darkTileOldPosition").getValue();
                             Long darkTileNPos = (Long) dataSnapshot.child("darkTileNewPosition").getValue();
+                            Log.d("AdapterTilesSize", "Tiles size in darkTile listener is: " + adapter.getTilesSize() + " For player " + playerType);
                             adapter.handleDBDarkTileSwapping(darkTileOPos, darkTileNPos);
                             //setTilesFromDatabase(dataSnapshot.child("darkTileOldPosition").getValue().toString(), dataSnapshot.child("darkTileNewPosition").getValue().toString());
                         }
@@ -466,7 +474,8 @@ public class GameActivity extends ActionBarActivity {
                             adapter.getVoteController().setVoteType(voteType);
                             Log.d("GameActivity", "Vote type is" + adapter.getVoteController().getVoteType());
                             voting = true;
-                            initiatePlayerAction(voteType);
+                            Log.d("GameActivity", "This context is " + getThisContext());
+                            initiatePlayerAction(voteType,getThisContext());
                         }
 
                     default:
@@ -495,7 +504,7 @@ public class GameActivity extends ActionBarActivity {
     public ChildEventListener getAllChildsListener(){
         return this.allChildsListener;
     }
-    public void initiatePlayerAction(final String actionType){
+    public void initiatePlayerAction(final String actionType, Context context){
         Log.d("GameActivity", "Shuffle was initiated");
         if(actionType == "shuffle"){
             dialogTitle = "Tiles will be re-shuffeled";
@@ -503,25 +512,31 @@ public class GameActivity extends ActionBarActivity {
         else if(actionType == "resetDiff"){
             dialogTitle = "Difficulty will be changed";
         }
-        new AlertDialog.Builder(GameActivity.this)
-                .setTitle(dialogTitle)
-                .setMessage("Are you ok with this?")
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // continue with delete
-                        if(voting){
-                            adapter.getVoteController().vote(true);
-                        }
+        if(!isFinishing()){
+            new AlertDialog.Builder(context)
+                    .setTitle(dialogTitle)
+                    .setMessage("Are you ok with this?")
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            // continue with delete
+                            if(voting){
+                                adapter.getVoteController().vote(true);
+                            }
 
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        adapter.getVoteController().vote(false);
-                    }
-                })
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .show();
+                        }
+                    })
+                    .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            adapter.getVoteController().vote(false);
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+        }
+        else{
+            Log.d("GameActivity", "Activity is in finishing process");
+        }
+
     }
     public boolean checkIfEveryoneVotedYes(DataSnapshot snapshot){
         for (DataSnapshot sn : snapshot.getChildren()){
@@ -547,5 +562,10 @@ public class GameActivity extends ActionBarActivity {
     protected void onDestroy() {
         super.onDestroy();
         Log.d("GameActivity", "Activity is destroyed");
+
+        //adapter = null;
+    }
+    public Context getThisContext(){
+        return GameActivity.this;
     }
 }

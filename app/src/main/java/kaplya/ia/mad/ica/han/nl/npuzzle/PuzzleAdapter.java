@@ -65,7 +65,7 @@ public class PuzzleAdapter extends BaseAdapter {
     final DatabaseReference myRef = database.getInstance().getReference();
     //private InGameActions inGameActions;
     public VoteController voteController;
-    public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, final ArrayList<Tile> tiles, String myType) {
+    public PuzzleAdapter(Context context, int PUZZLE_CHUNKS, ArrayList<Tile> tiles, String myType) {
         this.context = context;
         this.myType = myType;
         darkTile = new DarkTile();
@@ -75,10 +75,12 @@ public class PuzzleAdapter extends BaseAdapter {
         createListenerForOpponentActions(myType);
         GameActivity.initTurnIndicator(myTurn);
         this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
+        Log.d("AdapterInGame", "Tiles size is: "+tiles.size());
         this.tiles = tiles;
         this.tilesBackup = tiles;
         imageWidth = tiles.get(0).getTileBitmap().getWidth() * 2;
         imageHeight = tiles.get(0).getTileBitmap().getHeight() * 2;
+        Log.d("AdapterTilesSize", "Initial setting for the tiles");
         setTileAddrInDatabase();
         //Setting start position of the dark tile
         //inGameActions = new InGameActions(GameActivity.hostName);
@@ -123,6 +125,7 @@ public class PuzzleAdapter extends BaseAdapter {
             tileDatabaseArr[i] = tiles.get(i).getTileId();
         }
         Log.d("PuzzleAdapter", "TileDatabaseArr size before database insert is: "+ tileDatabaseArr.length);
+        Log.d("AdapterTilesSize", "InMethod setting for the tiles");
         myRef.child("users").child(GameActivity.hostName).child("tileaddr").setValue(Arrays.toString(tileDatabaseArr));
         Log.d("PuzzleAdapter", "Data is inserted " + tileDatabaseArr.length);
     }
@@ -278,6 +281,7 @@ public class PuzzleAdapter extends BaseAdapter {
     }
     public void shuffleTiles(){
 //        Collections.shuffle(tiles,new Random(System.nanoTime()));
+        Log.d("AdapterInGame", "Tile size before shuffling: " + tiles.size());
         Collections.reverse(tiles);
         int blankPos = 0;
         for(int i = 0; i<tiles.size();i++){
@@ -287,21 +291,23 @@ public class PuzzleAdapter extends BaseAdapter {
         }
         Tile lastTile = tiles.get(tiles.size()-1);
         Tile blankTile = tiles.get(blankPos);
-        tiles.set(blankPos,lastTile);
+        tiles.set(blankPos, lastTile);
         tiles.set(tiles.size() - 1, blankTile);
         //setting the last tile an id of empty tile
-        for(int i =0;i<tiles.size();i++){
-            //Log.d("Puzzle","Shuffled tiles are+"+tiles.get(i).getTileId());
-        }
         darkTile.setNewPosition(tiles.size() - 1);
         Log.d("PuzzleAdapter", "Trying to renew tileaddr in database" + tileDatabaseArr.length);
+        Log.d("AdapterTilesSize", "While shuffling setting for the tiles");
         setTileAddrInDatabase();
         stepsCount = 0;
+        Log.d("AdapterInGame", "Tile size after shuffling: " + tiles.size());
         notifyDataSetChanged();
     }
     //this function swaps founded dark tile with clicked tile
     public void setTilesFromDatabase(){
         Log.d("PuzzleAdapter", "Trying to swap now");
+
+        Log.d("AdapterInGame", "Tiles size as argument before bug is: " + tiles.size());
+        Log.d("AdapterInGame", "Tiles size before bug is: " + tiles.size());
         Tile foundedDarkTile = tiles.get(darkTile.getOldPosition());
         Tile clickedTile = tiles.get(darkTile.getNewPosition());
         tiles.set(darkTile.getNewPosition(), foundedDarkTile);
@@ -309,6 +315,7 @@ public class PuzzleAdapter extends BaseAdapter {
         //user have swapped the tiles,next user can do something
         notifyDataSetChanged();
         clearHints();
+        Log.d("AdapterTilesSize", "While swapping setting for the tiles");
         setTileAddrInDatabase();
     }
 
@@ -413,7 +420,7 @@ public class PuzzleAdapter extends BaseAdapter {
             }
             ;
         }
-        Log.d("PuzzleAdapter", "TilebaseArr length is: " + tileDatabaseArr.length + " Result set from database length is: "+ results.length);
+        Log.d("PuzzleAdapter", "TilebaseArr length is: " + tileDatabaseArr.length + " Result set from database length is: " + results.length);
 //        for (int i = 0; i < tileDatabaseArr.length; i++) {
 //            tileDatabaseArr[i] = results[i];
 //        }
@@ -475,7 +482,7 @@ public class PuzzleAdapter extends BaseAdapter {
     public String getOpponentType(){
         return this.opponentType;
     }
-    public void reinit(int PUZZLE_CHUNKS, final ArrayList<Tile> tiles){
+    public void reinit(int PUZZLE_CHUNKS, ArrayList<Tile> tiles){
         this.PUZZLE_CHUNKS = PUZZLE_CHUNKS;
         this.tiles = tiles;
         this.tilesBackup = tiles;
@@ -487,10 +494,13 @@ public class PuzzleAdapter extends BaseAdapter {
                 new Runnable() {
                     public void run() {
                         shuffleTiles();
-                        //setTileAddrInDatabase();
                     }
                 },
                 3000);
+    }
+
+    public int getTilesSize(){
+        return this.tiles.size();
     }
 
 }
