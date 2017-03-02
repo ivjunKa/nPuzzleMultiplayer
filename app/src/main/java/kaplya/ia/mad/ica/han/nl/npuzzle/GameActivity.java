@@ -20,6 +20,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.GridView;
@@ -175,8 +177,27 @@ public class GameActivity extends ActionBarActivity {
                 //myRef.child("users").child(GameActivity.hostName).child("player_actions").setValue("reset_diff_25");
                 break;
             case R.id.action_quit:
-                Intent intent = new Intent(GameActivity.this,MainActivity.class);
-                startActivity(intent);
+//                Intent intent = new Intent(GameActivity.this,MainActivity.class);
+//                startActivity(intent);
+                new AlertDialog.Builder(GameActivity.this)
+                        .setTitle("Leave game")
+                        .setMessage("Do you want to quit the game?")
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                // continue with delete
+                                final FirebaseDatabase database = FirebaseDatabase.getInstance();
+                                //adding reference to table
+                                final DatabaseReference myRef = database.getReference();
+                                myRef.child("users").child(hostName).child("status").setValue("game_over");
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                // do nothing
+                            }
+                        })
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
                 break;
             case R.id.action_shuffle:
                 Log.d("Puzzle", "SHUFFLE");
@@ -338,25 +359,25 @@ public class GameActivity extends ActionBarActivity {
     @Override
     public void onBackPressed() {
 
-        new AlertDialog.Builder(GameActivity.this)
-                .setTitle("Leave game")
-                .setMessage("Do you want to quit the game?")
-                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // continue with delete
-                        final FirebaseDatabase database = FirebaseDatabase.getInstance();
-                        //adding reference to table
-                        final DatabaseReference myRef = database.getReference();
-                        myRef.child("users").child(hostName).child("status").setValue("game_over");
-                    }
-                })
-                .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // do nothing
-                    }
-                })
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .show();
+//        new AlertDialog.Builder(GameActivity.this)
+//                .setTitle("Leave game")
+//                .setMessage("Do you want to quit the game?")
+//                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+//                    public void onClick(DialogInterface dialog, int which) {
+//                        // continue with delete
+//                        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+//                        //adding reference to table
+//                        final DatabaseReference myRef = database.getReference();
+//                        myRef.child("users").child(hostName).child("status").setValue("game_over");
+//                    }
+//                })
+//                .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+//                    public void onClick(DialogInterface dialog, int which) {
+//                        // do nothing
+//                    }
+//                })
+//                .setIcon(android.R.drawable.ic_dialog_alert)
+//                .show();
     }
     public void cleanGame(){
         Log.d("GameActivity", "Adapter is" + adapter);
@@ -567,5 +588,17 @@ public class GameActivity extends ActionBarActivity {
     }
     public Context getThisContext(){
         return GameActivity.this;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d("GameActivity", "I am resumed!" + GameActivity.hostName);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d("GameActivity", "I`m on pauze now" + GameActivity.hostName);
     }
 }

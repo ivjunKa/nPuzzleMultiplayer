@@ -43,13 +43,14 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
     private ChildEventListener listListener = null;
     private FirebaseDatabase database;
     private DatabaseReference myRef;
+    private GPSTracker gpsTracker;
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.multiplayer_game_list);
+        gpsTracker = new GPSTracker(MultiPlayerStartScreen.this);
         database = FirebaseDatabase.getInstance();
         myRef = database.getInstance().getReference();
-
 
         initDatabase();
         mListView = (ListView) findViewById(R.id.list_avialable_games);
@@ -146,20 +147,26 @@ public class MultiPlayerStartScreen extends ActionBarActivity {
         games_list.add(value);
         arrayAdapter.notifyDataSetChanged();
     }
-    public void initDatabase(){
+    public void initDatabase() {
         Log.d("MultiplayerStartScreen", "Init database");
         if(listListener == null){
             Log.d("MultiplayerStartScreen", "Creating listener");
             listListener = new ChildEventListener() {
                 @Override
                 public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                    Log.d("MultiplayerStartScreen", "This is our list: " + dataSnapshot.getKey().toString());
-                    updateList(dataSnapshot.getKey().toString());
+                    if(dataSnapshot.child("location").hasChild("lat") && dataSnapshot.child("location").hasChild("lon")) {
+                        String lon = dataSnapshot.child("location").child("lon").getValue().toString();
+                        String lat = dataSnapshot.child("location").child("lat").getValue().toString();
+                        Double distance = Math.pow((Double.parseDouble(lon) - gpsTracker.getLongitude()), 2) + Math.pow((Double.parseDouble(lat) - gpsTracker.getLatitude()),2);
+                        if(distance<10.0) {
+                            updateList(dataSnapshot.getKey().toString());
+                        }
+                    }
                 }
 
                 @Override
                 public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
+                    //Log.d("MultiplayerStartScreen", "Coords of known hosts:" + dataSnapshot.child("location").child("lat").getValue());
                 }
 
                 @Override

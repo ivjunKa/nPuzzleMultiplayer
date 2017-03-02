@@ -132,7 +132,6 @@ public class PuzzleAdapter extends BaseAdapter {
     // create a new ImageView for each item referenced by the Adapter
     public View getView(final int position, final View convertView, final ViewGroup parent) {
         //Log.d("PuzzleAdapter","This is getView method of the Puzzle adapter");
-
         final ImageView imageView;
         //ConvertView check temporarely disabled due to bug with the first tile LayoutParams after reshuffling
 //        if (convertView == null) {
@@ -502,5 +501,4 @@ public class PuzzleAdapter extends BaseAdapter {
     public int getTilesSize(){
         return this.tiles.size();
     }
-
 }

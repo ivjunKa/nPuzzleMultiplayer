@@ -34,12 +34,14 @@ public class MainActivity extends ActionBarActivity {
 
     private boolean GameTypeMultiplayer = false;
     private String userName;
-
+    private GPSTracker gpsTracker;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         //super.onResume();
         setContentView(R.layout.activity_main);
+        gpsTracker = new GPSTracker(MainActivity.this);
+
         //connecting to firebase
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         //adding reference to table
@@ -63,19 +65,19 @@ public class MainActivity extends ActionBarActivity {
                 String drawableName = getSelectedImageName(imgSelectorGroup.getCheckedRadioButtonId());
                 numberOfChunks = getDifficulty();
                 Intent nextIntent = new Intent();
-                //if (GameTypeMultiplayer) {
-                    nextIntent.setClass(MainActivity.this,GameActivity.class);
-                    Log.d("MainActivity", "Setting new user reference");
-                    DatabaseReference statusRef = myRef.child("users").child(userName).child("status");
-                    DatabaseReference imageName = myRef.child("users").child(userName).child("imgname");
-                    DatabaseReference difficulty = myRef.child("users").child(userName).child("difficulty");
-                    difficulty.setValue(numberOfChunks);
-                    statusRef.setValue("waiting_for_guest");
-                    imageName.setValue(drawableName);
+                nextIntent.setClass(MainActivity.this, GameActivity.class);
+                gpsTracker.getLocation();
+                myRef.child("users").child(userName).child("location").child("lat").setValue(gpsTracker.getLatitude());
+                myRef.child("users").child(userName).child("location").child("lon").setValue(gpsTracker.getLongitude());
+                DatabaseReference statusRef = myRef.child("users").child(userName).child("status");
+                DatabaseReference imageName = myRef.child("users").child(userName).child("imgname");
+                DatabaseReference difficulty = myRef.child("users").child(userName).child("difficulty");
+                difficulty.setValue(numberOfChunks);
+                statusRef.setValue("waiting_for_guest");
+                imageName.setValue(drawableName);
                 nextIntent.putExtra("username", userName);
-                nextIntent.putExtra("host",true);
+                nextIntent.putExtra("host", true);
                 nextIntent.putExtra("selectedHostName", previousIntent.getStringExtra("selectedHostName"));
-                Log.d("MainActivity", "this is our main activity intent " + nextIntent.toString());
                 startActivity(nextIntent);
             }
         });
